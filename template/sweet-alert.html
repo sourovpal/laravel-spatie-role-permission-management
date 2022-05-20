@@ -1,0 +1,1019 @@
+ateClass(Constructor, protoProps, staticProps) { if (protoProps) Style_defineProperties(Constructor.prototype, protoProps); if (staticProps) Style_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+
+
+
+
+var Style_Style = /*#__PURE__*/function () {
+  function Style() {
+    Style_classCallCheck(this, Style);
+  }
+
+  Style_createClass(Style, [{
+    key: "jQueryCSS",
+
+    /**
+     * @method jQueryCSS
+     *
+     * [workaround] for old jQuery
+     * passing an array of style properties to .css()
+     * will result in an object of property-value pairs.
+     * (compability with version < 1.9)
+     *
+     * @private
+     * @param  {jQuery} $obj
+     * @param  {Array} propertyNames - An array of one or more CSS properties.
+     * @return {Object}
+     */
+    value: function jQueryCSS($obj, propertyNames) {
+      if (env.jqueryVersion < 1.9) {
+        var result = {};
+        external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(propertyNames, function (idx, propertyName) {
+          result[propertyName] = $obj.css(propertyName);
+        });
+        return result;
+      }
+
+      return $obj.css(propertyNames);
+    }
+    /**
+     * returns style object from node
+     *
+     * @param {jQuery} $node
+     * @return {Object}
+     */
+
+  }, {
+    key: "fromNode",
+    value: function fromNode($node) {
+      var properties = ['font-family', 'font-size', 'text-align', 'list-style-type', 'line-height'];
+      var styleInfo = this.jQueryCSS($node, properties) || {};
+      var fontSize = $node[0].style.fontSize || styleInfo['font-size'];
+      styleInfo['font-size'] = parseInt(fontSize, 10);
+      styleInfo['font-size-unit'] = fontSize.match(/[a-z%]+$/);
+      return styleInfo;
+    }
+    /**
+     * paragraph level style
+     *
+     * @param {WrappedRange} rng
+     * @param {Object} styleInfo
+     */
+
+  }, {
+    key: "stylePara",
+    value: function stylePara(rng, styleInfo) {
+      external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(rng.nodes(dom.isPara, {
+        includeAncestor: true
+      }), function (idx, para) {
+        external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(para).css(styleInfo);
+      });
+    }
+    /**
+     * insert and returns styleNodes on range.
+     *
+     * @param {WrappedRange} rng
+     * @param {Object} [options] - options for styleNodes
+     * @param {String} [options.nodeName] - default: `SPAN`
+     * @param {Boolean} [options.expandClosestSibling] - default: `false`
+     * @param {Boolean} [options.onlyPartialContains] - default: `false`
+     * @return {Node[]}
+     */
+
+  }, {
+    key: "styleNodes",
+    value: function styleNodes(rng, options) {
+      rng = rng.splitText();
+      var nodeName = options && options.nodeName || 'SPAN';
+      var expandClosestSibling = !!(options && options.expandClosestSibling);
+      var onlyPartialContains = !!(options && options.onlyPartialContains);
+
+      if (rng.isCollapsed()) {
+        return [rng.insertNode(dom.create(nodeName))];
+      }
+
+      var pred = dom.makePredByNodeName(nodeName);
+      var nodes = rng.nodes(dom.isText, {
+        fullyContains: true
+      }).map(function (text) {
+        return dom.singleChildAncestor(text, pred) || dom.wrap(text, nodeName);
+      });
+
+      if (expandClosestSibling) {
+        if (onlyPartialContains) {
+          var nodesInRange = rng.nodes(); // compose with partial contains predication
+
+          pred = func.and(pred, function (node) {
+            return lists.contains(nodesInRange, node);
+          });
+        }
+
+        return nodes.map(function (node) {
+          var siblings = dom.withClosestSiblings(node, pred);
+          var head = lists.head(siblings);
+          var tails = lists.tail(siblings);
+          external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(tails, function (idx, elem) {
+            dom.appendChildNodes(head, elem.childNodes);
+            dom.remove(elem);
+          });
+          return lists.head(siblings);
+        });
+      } else {
+        return nodes;
+      }
+    }
+    /**
+     * get current style on cursor
+     *
+     * @param {WrappedRange} rng
+     * @return {Object} - object contains style properties.
+     */
+
+  }, {
+    key: "current",
+    value: function current(rng) {
+      var $cont = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(!dom.isElement(rng.sc) ? rng.sc.parentNode : rng.sc);
+      var styleInfo = this.fromNode($cont); // document.queryCommandState for toggle state
+      // [workaround] prevent Firefox nsresult: "0x80004005 (NS_ERROR_FAILURE)"
+
+      try {
+        styleInfo = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.extend(styleInfo, {
+          'font-bold': document.queryCommandState('bold') ? 'bold' : 'normal',
+          'font-italic': document.queryCommandState('italic') ? 'italic' : 'normal',
+          'font-underline': document.queryCommandState('underline') ? 'underline' : 'normal',
+          'font-subscript': document.queryCommandState('subscript') ? 'subscript' : 'normal',
+          'font-superscript': document.queryCommandState('superscript') ? 'superscript' : 'normal',
+          'font-strikethrough': document.queryCommandState('strikethrough') ? 'strikethrough' : 'normal',
+          'font-family': document.queryCommandValue('fontname') || styleInfo['font-family']
+        });
+      } catch (e) {} // eslint-disable-next-line
+      // list-style-type to list-style(unordered, ordered)
+
+
+      if (!rng.isOnList()) {
+        styleInfo['list-style'] = 'none';
+      } else {
+        var orderedTypes = ['circle', 'disc', 'disc-leading-zero', 'square'];
+        var isUnordered = orderedTypes.indexOf(styleInfo['list-style-type']) > -1;
+        styleInfo['list-style'] = isUnordered ? 'unordered' : 'ordered';
+      }
+
+      var para = dom.ancestor(rng.sc, dom.isPara);
+
+      if (para && para.style['line-height']) {
+        styleInfo['line-height'] = para.style.lineHeight;
+      } else {
+        var lineHeight = parseInt(styleInfo['line-height'], 10) / parseInt(styleInfo['font-size'], 10);
+        styleInfo['line-height'] = lineHeight.toFixed(1);
+      }
+
+      styleInfo.anchor = rng.isOnAnchor() && dom.ancestor(rng.sc, dom.isAnchor);
+      styleInfo.ancestors = dom.listAncestor(rng.sc, dom.isEditable);
+      styleInfo.range = rng;
+      return styleInfo;
+    }
+  }]);
+
+  return Style;
+}();
+
+
+// CONCATENATED MODULE: ./src/js/base/editing/Bullet.js
+function Bullet_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function Bullet_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function Bullet_createClass(Constructor, protoProps, staticProps) { if (protoProps) Bullet_defineProperties(Constructor.prototype, protoProps); if (staticProps) Bullet_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+
+
+
+
+var Bullet_Bullet = /*#__PURE__*/function () {
+  function Bullet() {
+    Bullet_classCallCheck(this, Bullet);
+  }
+
+  Bullet_createClass(Bullet, [{
+    key: "insertOrderedList",
+
+    /**
+     * toggle ordered list
+     */
+    value: function insertOrderedList(editable) {
+      this.toggleList('OL', editable);
+    }
+    /**
+     * toggle unordered list
+     */
+
+  }, {
+    key: "insertUnorderedList",
+    value: function insertUnorderedList(editable) {
+      this.toggleList('UL', editable);
+    }
+    /**
+     * indent
+     */
+
+  }, {
+    key: "indent",
+    value: function indent(editable) {
+      var _this = this;
+
+      var rng = range.create(editable).wrapBodyInlineWithPara();
+      var paras = rng.nodes(dom.isPara, {
+        includeAncestor: true
+      });
+      var clustereds = lists.clusterBy(paras, func.peq2('parentNode'));
+      external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(clustereds, function (idx, paras) {
+        var head = lists.head(paras);
+
+        if (dom.isLi(head)) {
+          var previousList = _this.findList(head.previousSibling);
+
+          if (previousList) {
+            paras.map(function (para) {
+              return previousList.appendChild(para);
+            });
+          } else {
+            _this.wrapList(paras, head.parentNode.nodeName);
+
+            paras.map(function (para) {
+              return para.parentNode;
+            }).map(function (para) {
+              return _this.appendToPrevious(para);
+            });
+          }
+        } else {
+          external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(paras, function (idx, para) {
+            external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(para).css('marginLeft', function (idx, val) {
+              return (parseInt(val, 10) || 0) + 25;
+            });
+          });
+        }
+      });
+      rng.select();
+    }
+    /**
+     * outdent
+     */
+
+  }, {
+    key: "outdent",
+    value: function outdent(editable) {
+      var _this2 = this;
+
+      var rng = range.create(editable).wrapBodyInlineWithPara();
+      var paras = rng.nodes(dom.isPara, {
+        includeAncestor: true
+      });
+      var clustereds = lists.clusterBy(paras, func.peq2('parentNode'));
+      external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(clustereds, function (idx, paras) {
+        var head = lists.head(paras);
+
+        if (dom.isLi(head)) {
+          _this2.releaseList([paras]);
+        } else {
+          external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(paras, function (idx, para) {
+            external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(para).css('marginLeft', function (idx, val) {
+              val = parseInt(val, 10) || 0;
+              return val > 25 ? val - 25 : '';
+            });
+          });
+        }
+      });
+      rng.select();
+    }
+    /**
+     * toggle list
+     *
+     * @param {String} listName - OL or UL
+     */
+
+  }, {
+    key: "toggleList",
+    value: function toggleList(listName, editable) {
+      var _this3 = this;
+
+      var rng = range.create(editable).wrapBodyInlineWithPara();
+      var paras = rng.nodes(dom.isPara, {
+        includeAncestor: true
+      });
+      var bookmark = rng.paraBookmark(paras);
+      var clustereds = lists.clusterBy(paras, func.peq2('parentNode')); // paragraph to list
+
+      if (lists.find(paras, dom.isPurePara)) {
+        var wrappedParas = [];
+        external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(clustereds, function (idx, paras) {
+          wrappedParas = wrappedParas.concat(_this3.wrapList(paras, listName));
+        });
+        paras = wrappedParas; // list to paragraph or change list style
+      } else {
+        var diffLists = rng.nodes(dom.isList, {
+          includeAncestor: true
+        }).filter(function (listNode) {
+          return !external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.nodeName(listNode, listName);
+        });
+
+        if (diffLists.length) {
+          external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(diffLists, function (idx, listNode) {
+            dom.replace(listNode, listName);
+          });
+        } else {
+          paras = this.releaseList(clustereds, true);
+        }
+      }
+
+      range.createFromParaBookmark(bookmark, paras).select();
+    }
+    /**
+     * @param {Node[]} paras
+     * @param {String} listName
+     * @return {Node[]}
+     */
+
+  }, {
+    key: "wrapList",
+    value: function wrapList(paras, listName) {
+      var head = lists.head(paras);
+      var last = lists.last(paras);
+      var prevList = dom.isList(head.previousSibling) && head.previousSibling;
+      var nextList = dom.isList(last.nextSibling) && last.nextSibling;
+      var listNode = prevList || dom.insertAfter(dom.create(listName || 'UL'), last); // P to LI
+
+      paras = paras.map(function (para) {
+        return dom.isPurePara(para) ? dom.replace(para, 'LI') : para;
+      }); // append to list(<ul>, <ol>)
+
+      dom.appendChildNodes(listNode, paras);
+
+      if (nextList) {
+        dom.appendChildNodes(listNode, lists.from(nextList.childNodes));
+        dom.remove(nextList);
+      }
+
+      return paras;
+    }
+    /**
+     * @method releaseList
+     *
+     * @param {Array[]} clustereds
+     * @param {Boolean} isEscapseToBody
+     * @return {Node[]}
+     */
+
+  }, {
+    key: "releaseList",
+    value: function releaseList(clustereds, isEscapseToBody) {
+      var _this4 = this;
+
+      var releasedParas = [];
+      external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(clustereds, function (idx, paras) {
+        var head = lists.head(paras);
+        var last = lists.last(paras);
+        var headList = isEscapseToBody ? dom.lastAncestor(head, dom.isList) : head.parentNode;
+        var parentItem = headList.parentNode;
+
+        if (headList.parentNode.nodeName === 'LI') {
+          paras.map(function (para) {
+            var newList = _this4.findNextSiblings(para);
+
+            if (parentItem.nextSibling) {
+              parentItem.parentNode.insertBefore(para, parentItem.nextSibling);
+            } else {
+              parentItem.parentNode.appendChild(para);
+            }
+
+            if (newList.length) {
+              _this4.wrapList(newList, headList.nodeName);
+
+              para.appendChild(newList[0].parentNode);
+            }
+          });
+
+          if (headList.children.length === 0) {
+            parentItem.removeChild(headList);
+          }
+
+          if (parentItem.childNodes.length === 0) {
+            parentItem.parentNode.removeChild(parentItem);
+          }
+        } else {
+          var lastList = headList.childNodes.length > 1 ? dom.splitTree(headList, {
+            node: last.parentNode,
+            offset: dom.position(last) + 1
+          }, {
+            isSkipPaddingBlankHTML: true
+          }) : null;
+          var middleList = dom.splitTree(headList, {
+            node: head.parentNode,
+            offset: dom.position(head)
+          }, {
+            isSkipPaddingBlankHTML: true
+          });
+          paras = isEscapseToBody ? dom.listDescendant(middleList, dom.isLi) : lists.from(middleList.childNodes).filter(dom.isLi); // LI to P
+
+          if (isEscapseToBody || !dom.isList(headList.parentNode)) {
+            paras = paras.map(function (para) {
+              return dom.replace(para, 'P');
+            });
+          }
+
+          external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(lists.from(paras).reverse(), function (idx, para) {
+            dom.insertAfter(para, headList);
+          }); // remove empty lists
+
+          var rootLists = lists.compact([headList, middleList, lastList]);
+          external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(rootLists, function (idx, rootList) {
+            var listNodes = [rootList].concat(dom.listDescendant(rootList, dom.isList));
+            external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(listNodes.reverse(), function (idx, listNode) {
+              if (!dom.nodeLength(listNode)) {
+                dom.remove(listNode, true);
+              }
+            });
+          });
+        }
+
+        releasedParas = releasedParas.concat(paras);
+      });
+      return releasedParas;
+    }
+    /**
+     * @method appendToPrevious
+     *
+     * Appends list to previous list item, if
+     * none exist it wraps the list in a new list item.
+     *
+     * @param {HTMLNode} ListItem
+     * @return {HTMLNode}
+     */
+
+  }, {
+    key: "appendToPrevious",
+    value: function appendToPrevious(node) {
+      return node.previousSibling ? dom.appendChildNodes(node.previousSibling, [node]) : this.wrapList([node], 'LI');
+    }
+    /**
+     * @method findList
+     *
+     * Finds an existing list in list item
+     *
+     * @param {HTMLNode} ListItem
+     * @return {Array[]}
+     */
+
+  }, {
+    key: "findList",
+    value: function findList(node) {
+      return node ? lists.find(node.children, function (child) {
+        return ['OL', 'UL'].indexOf(child.nodeName) > -1;
+      }) : null;
+    }
+    /**
+     * @method findNextSiblings
+     *
+     * Finds all list item siblings that follow it
+     *
+     * @param {HTMLNode} ListItem
+     * @return {HTMLNode}
+     */
+
+  }, {
+    key: "findNextSiblings",
+    value: function findNextSiblings(node) {
+      var siblings = [];
+
+      while (node.nextSibling) {
+        siblings.push(node.nextSibling);
+        node = node.nextSibling;
+      }
+
+      return siblings;
+    }
+  }]);
+
+  return Bullet;
+}();
+
+
+// CONCATENATED MODULE: ./src/js/base/editing/Typing.js
+function Typing_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function Typing_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function Typing_createClass(Constructor, protoProps, staticProps) { if (protoProps) Typing_defineProperties(Constructor.prototype, protoProps); if (staticProps) Typing_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+
+
+/**
+ * @class editing.Typing
+ *
+ * Typing
+ *
+ */
+
+var Typing_Typing = /*#__PURE__*/function () {
+  function Typing(context) {
+    Typing_classCallCheck(this, Typing);
+
+    // a Bullet instance to toggle lists off
+    this.bullet = new Bullet_Bullet();
+    this.options = context.options;
+  }
+  /**
+   * insert tab
+   *
+   * @param {WrappedRange} rng
+   * @param {Number} tabsize
+   */
+
+
+  Typing_createClass(Typing, [{
+    key: "insertTab",
+    value: function insertTab(rng, tabsize) {
+      var tab = dom.createText(new Array(tabsize + 1).join(dom.NBSP_CHAR));
+      rng = rng.deleteContents();
+      rng.insertNode(tab, true);
+      rng = range.create(tab, tabsize);
+      rng.select();
+    }
+    /**
+     * insert paragraph
+     *
+     * @param {jQuery} $editable
+     * @param {WrappedRange} rng Can be used in unit tests to "mock" the range
+     *
+     * blockquoteBreakingLevel
+     *   0 - No break, the new paragraph remains inside the quote
+     *   1 - Break the first blockquote in the ancestors list
+     *   2 - Break all blockquotes, so that the new paragraph is not quoted (this is the default)
+     */
+
+  }, {
+    key: "insertParagraph",
+    value: function insertParagraph(editable, rng) {
+      rng = rng || range.create(editable); // deleteContents on range.
+
+      rng = rng.deleteContents(); // Wrap range if it needs to be wrapped by paragraph
+
+      rng = rng.wrapBodyInlineWithPara(); // finding paragraph
+
+      var splitRoot = dom.ancestor(rng.sc, dom.isPara);
+      var nextPara; // on paragraph: split paragraph
+
+      if (splitRoot) {
+        // if it is an empty line with li
+        if (dom.isLi(splitRoot) && (dom.isEmpty(splitRoot) || dom.deepestChildIsEmpty(splitRoot))) {
+          // toggle UL/OL and escape
+          this.bullet.toggleList(splitRoot.parentNode.nodeName);
+          return;
+        } else {
+          var blockquote = null;
+
+          if (this.options.blockquoteBreakingLevel === 1) {
+            blockquote = dom.ancestor(splitRoot, dom.isBlockquote);
+          } else if (this.options.blockquoteBreakingLevel === 2) {
+            blockquote = dom.lastAncestor(splitRoot, dom.isBlockquote);
+          }
+
+          if (blockquote) {
+            // We're inside a blockquote and options ask us to break it
+            nextPara = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(dom.emptyPara)[0]; // If the split is right before a <br>, remove it so that there's no "empty line"
+            // after the split in the new blockquote created
+
+            if (dom.isRightEdgePoint(rng.getStartPoint()) && dom.isBR(rng.sc.nextSibling)) {
+              external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(rng.sc.nextSibling).remove();
+            }
+
+            var split = dom.splitTree(blockquote, rng.getStartPoint(), {
+              isDiscardEmptySplits: true
+            });
+
+            if (split) {
+              split.parentNode.insertBefore(nextPara, split);
+            } else {
+              dom.insertAfter(nextPara, blockquote); // There's no split if we were at the end of the blockquote
+            }
+          } else {
+            nextPara = dom.splitTree(splitRoot, rng.getStartPoint()); // not a blockquote, just insert the paragraph
+
+            var emptyAnchors = dom.listDescendant(splitRoot, dom.isEmptyAnchor);
+            emptyAnchors = emptyAnchors.concat(dom.listDescendant(nextPara, dom.isEmptyAnchor));
+            external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(emptyAnchors, function (idx, anchor) {
+              dom.remove(anchor);
+            }); // replace empty heading, pre or custom-made styleTag with P tag
+
+            if ((dom.isHeading(nextPara) || dom.isPre(nextPara) || dom.isCustomStyleTag(nextPara)) && dom.isEmpty(nextPara)) {
+              nextPara = dom.replace(nextPara, 'p');
+            }
+          }
+        } // no paragraph: insert empty paragraph
+
+      } else {
+        var next = rng.sc.childNodes[rng.so];
+        nextPara = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(dom.emptyPara)[0];
+
+        if (next) {
+          rng.sc.insertBefore(nextPara, next);
+        } else {
+          rng.sc.appendChild(nextPara);
+        }
+      }
+
+      range.create(nextPara, 0).normalize().select().scrollIntoView(editable);
+    }
+  }]);
+
+  return Typing;
+}();
+
+
+// CONCATENATED MODULE: ./src/js/base/editing/Table.js
+function Table_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function Table_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function Table_createClass(Constructor, protoProps, staticProps) { if (protoProps) Table_defineProperties(Constructor.prototype, protoProps); if (staticProps) Table_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+
+
+/**
+ * @class Create a virtual table to create what actions to do in change.
+ * @param {object} startPoint Cell selected to apply change.
+ * @param {enum} where  Where change will be applied Row or Col. Use enum: TableResultAction.where
+ * @param {enum} action Action to be applied. Use enum: TableResultAction.requestAction
+ * @param {object} domTable Dom element of table to make changes.
+ */
+
+var TableResultAction = function TableResultAction(startPoint, where, action, domTable) {
+  var _startPoint = {
+    'colPos': 0,
+    'rowPos': 0
+  };
+  var _virtualTable = [];
+  var _actionCellList = []; /// ///////////////////////////////////////////
+  // Private functions
+  /// ///////////////////////////////////////////
+
+  /**
+   * Set the startPoint of action.
+   */
+
+  function setStartPoint() {
+    if (!startPoint || !startPoint.tagName || startPoint.tagName.toLowerCase() !== 'td' && startPoint.tagName.toLowerCase() !== 'th') {
+      // Impossible to identify start Cell point
+      return;
+    }
+
+    _startPoint.colPos = startPoint.cellIndex;
+
+    if (!startPoint.parentElement || !startPoint.parentElement.tagName || startPoint.parentElement.tagName.toLowerCase() !== 'tr') {
+      // Impossible to identify start Row point
+      return;
+    }
+
+    _startPoint.rowPos = startPoint.parentElement.rowIndex;
+  }
+  /**
+   * Define virtual table position info object.
+   *
+   * @param {int} rowIndex Index position in line of virtual table.
+   * @param {int} cellIndex Index position in column of virtual table.
+   * @param {object} baseRow Row affected by this position.
+   * @param {object} baseCell Cell affected by this position.
+   * @param {bool} isSpan Inform if it is an span cell/row.
+   */
+
+
+  function setVirtualTablePosition(rowIndex, cellIndex, baseRow, baseCell, isRowSpan, isColSpan, isVirtualCell) {
+    var objPosition = {
+      'baseRow': baseRow,
+      'baseCell': baseCell,
+      'isRowSpan': isRowSpan,
+      'isColSpan': isColSpan,
+      'isVirtual': isVirtualCell
+    };
+
+    if (!_virtualTable[rowIndex]) {
+      _virtualTable[rowIndex] = [];
+    }
+
+    _virtualTable[rowIndex][cellIndex] = objPosition;
+  }
+  /**
+   * Create action cell object.
+   *
+   * @param {object} virtualTableCellObj Object of specific position on virtual table.
+   * @param {enum} resultAction Action to be applied in that item.
+   */
+
+
+  function getActionCell(virtualTableCellObj, resultAction, virtualRowPosition, virtualColPosition) {
+    return {
+      'baseCell': virtualTableCellObj.baseCell,
+      'action': resultAction,
+      'virtualTable': {
+        'rowIndex': virtualRowPosition,
+        'cellIndex': virtualColPosition
+      }
+    };
+  }
+  /**
+   * Recover free index of row to append Cell.
+   *
+   * @param {int} rowIndex Index of row to find free space.
+   * @param {int} cellIndex Index of cell to find free space in table.
+   */
+
+
+  function recoverCellIndex(rowIndex, cellIndex) {
+    if (!_virtualTable[rowIndex]) {
+      return cellIndex;
+    }
+
+    if (!_virtualTable[rowIndex][cellIndex]) {
+      return cellIndex;
+    }
+
+    var newCellIndex = cellIndex;
+
+    while (_virtualTable[rowIndex][newCellIndex]) {
+      newCellIndex++;
+
+      if (!_virtualTable[rowIndex][newCellIndex]) {
+        return newCellIndex;
+      }
+    }
+  }
+  /**
+   * Recover info about row and cell and add information to virtual table.
+   *
+   * @param {object} row Row to recover information.
+   * @param {object} cell Cell to recover information.
+   */
+
+
+  function addCellInfoToVirtual(row, cell) {
+    var cellIndex = recoverCellIndex(row.rowIndex, cell.cellIndex);
+    var cellHasColspan = cell.colSpan > 1;
+    var cellHasRowspan = cell.rowSpan > 1;
+    var isThisSelectedCell = row.rowIndex === _startPoint.rowPos && cell.cellIndex === _startPoint.colPos;
+    setVirtualTablePosition(row.rowIndex, cellIndex, row, cell, cellHasRowspan, cellHasColspan, false); // Add span rows to virtual Table.
+
+    var rowspanNumber = cell.attributes.rowSpan ? parseInt(cell.attributes.rowSpan.value, 10) : 0;
+
+    if (rowspanNumber > 1) {
+      for (var rp = 1; rp < rowspanNumber; rp++) {
+        var rowspanIndex = row.rowIndex + rp;
+        adjustStartPoint(rowspanIndex, cellIndex, cell, isThisSelectedCell);
+        setVirtualTablePosition(rowspanIndex, cellIndex, row, cell, true, cellHasColspan, true);
+      }
+    } // Add span cols to virtual table.
+
+
+    var colspanNumber = cell.attributes.colSpan ? parseInt(cell.attributes.colSpan.value, 10) : 0;
+
+    if (colspanNumber > 1) {
+      for (var cp = 1; cp < colspanNumber; cp++) {
+        var cellspanIndex = recoverCellIndex(row.rowIndex, cellIndex + cp);
+        adjustStartPoint(row.rowIndex, cellspanIndex, cell, isThisSelectedCell);
+        setVirtualTablePosition(row.rowIndex, cellspanIndex, row, cell, cellHasRowspan, true, true);
+      }
+    }
+  }
+  /**
+   * Process validation and adjust of start point if needed
+   *
+   * @param {int} rowIndex
+   * @param {int} cellIndex
+   * @param {object} cell
+   * @param {bool} isSelectedCell
+   */
+
+
+  function adjustStartPoint(rowIndex, cellIndex, cell, isSelectedCell) {
+    if (rowIndex === _startPoint.rowPos && _startPoint.colPos >= cell.cellIndex && cell.cellIndex <= cellIndex && !isSelectedCell) {
+      _startPoint.colPos++;
+    }
+  }
+  /**
+   * Create virtual table of cells with all cells, including span cells.
+   */
+
+
+  function createVirtualTable() {
+    var rows = domTable.rows;
+
+    for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+      var cells = rows[rowIndex].cells;
+
+      for (var cellIndex = 0; cellIndex < cells.length; cellIndex++) {
+        addCellInfoToVirtual(rows[rowIndex], cells[cellIndex]);
+      }
+    }
+  }
+  /**
+   * Get action to be applied on the cell.
+   *
+   * @param {object} cell virtual table cell to apply action
+   */
+
+
+  function getDeleteResultActionToCell(cell) {
+    switch (where) {
+      case TableResultAction.where.Column:
+        if (cell.isColSpan) {
+          return TableResultAction.resultAction.SubtractSpanCount;
+        }
+
+        break;
+
+      case TableResultAction.where.Row:
+        if (!cell.isVirtual && cell.isRowSpan) {
+          return TableResultAction.resultAction.AddCell;
+        } else if (cell.isRowSpan) {
+          return TableResultAction.resultAction.SubtractSpanCount;
+        }
+
+        break;
+    }
+
+    return TableResultAction.resultAction.RemoveCell;
+  }
+  /**
+   * Get action to be applied on the cell.
+   *
+   * @param {object} cell virtual table cell to apply action
+   */
+
+
+  function getAddResultActionToCell(cell) {
+    switch (where) {
+      case TableResultAction.where.Column:
+        if (cell.isColSpan) {
+          return TableResultAction.resultAction.SumSpanCount;
+        } else if (cell.isRowSpan && cell.isVirtual) {
+          return TableResultAction.resultAction.Ignore;
+        }
+
+        break;
+
+      case TableResultAction.where.Row:
+        if (cell.isRowSpan) {
+          return TableResultAction.resultAction.SumSpanCount;
+        } else if (cell.isColSpan && cell.isVirtual) {
+          return TableResultAction.resultAction.Ignore;
+        }
+
+        break;
+    }
+
+    return TableResultAction.resultAction.AddCell;
+  }
+
+  function init() {
+    setStartPoint();
+    createVirtualTable();
+  } /// ///////////////////////////////////////////
+  // Public functions
+  /// ///////////////////////////////////////////
+
+  /**
+   * Recover array os what to do in table.
+   */
+
+
+  this.getActionList = function () {
+    var fixedRow = where === TableResultAction.where.Row ? _startPoint.rowPos : -1;
+    var fixedCol = where === TableResultAction.where.Column ? _startPoint.colPos : -1;
+    var actualPosition = 0;
+    var canContinue = true;
+
+    while (canContinue) {
+      var rowPosition = fixedRow >= 0 ? fixedRow : actualPosition;
+      var colPosition = fixedCol >= 0 ? fixedCol : actualPosition;
+      var row = _virtualTable[rowPosition];
+
+      if (!row) {
+        canContinue = false;
+        return _actionCellList;
+      }
+
+      var cell = row[colPosition];
+
+      if (!cell) {
+        canContinue = false;
+        return _actionCellList;
+      } // Define action to be applied in this cell
+
+
+      var resultAction = TableResultAction.resultAction.Ignore;
+
+      switch (action) {
+        case TableResultAction.requestAction.Add:
+          resultAction = getAddResultActionToCell(cell);
+          break;
+
+        case TableResultAction.requestAction.Delete:
+          resultAction = getDeleteResultActionToCell(cell);
+          break;
+      }
+
+      _actionCellList.push(getActionCell(cell, resultAction, rowPosition, colPosition));
+
+      actualPosition++;
+    }
+
+    return _actionCellList;
+  };
+
+  init();
+};
+/**
+*
+* Where action occours enum.
+*/
+
+
+TableResultAction.where = {
+  'Row': 0,
+  'Column': 1
+};
+/**
+*
+* Requested action to apply enum.
+*/
+
+TableResultAction.requestAction = {
+  'Add': 0,
+  'Delete': 1
+};
+/**
+*
+* Result action to be executed enum.
+*/
+
+TableResultAction.resultAction = {
+  'Ignore': 0,
+  'SubtractSpanCount': 1,
+  'RemoveCell': 2,
+  'AddCell': 3,
+  'SumSpanCount': 4
+};
+/**
+ *
+ * @class editing.Table
+ *
+ * Table
+ *
+ */
+
+var Table_Table = /*#__PURE__*/function () {
+  function Table() {
+    Table_classCallCheck(this, Table);
+  }
+
+  Table_createClass(Table, [{
+    key: "tab",
+
+    /**
+     * handle tab key
+     *
+     * @param {WrappedRange} rng
+     * @param {Boolean} isShift
+     */
+    value: function tab(rng, isShift) {
+      var cell = dom.ancestor(rng.commonAncestor(), dom.isCell);
+      var table = dom.ancestor(cell, dom.isTable);
+      var cells = dom.listDescendant(table, dom.isCell);
+      var nextCell = lists[isShift ? 'prev' : 'next'](cells, cell);
+
+      if (nextCell) {
+        range.create(nextCell, 0).select();
+      }
+    }
+    /**
+     * Add a new row
+     *
+     * @param {WrappedRange} rng
+     * @param {String} position (top/bottom)
+     * @return {Node}
+     */
+
+  }, {
+    key: "addRow",
+    value: function addRow(rng, position) {
+      var cell = dom.ancestor(rng.commonAncestor(), dom.isCell);
+      var currentTr = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(cell).closest('tr');
+      var trAttributes = this.recoverAttributes(currentTr);
+      var html = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()('<tr' + trAttributes + '></tr>');
+      var vTabl

@@ -1,0 +1,963 @@
+t["return"] != null) it["return"](); } finally { if (didErr) throw err; } } }; }
+
+function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(n); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
+
+function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) { arr2[i] = arr[i]; } return arr2; }
+
+function Codeview_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function Codeview_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function Codeview_createClass(Constructor, protoProps, staticProps) { if (protoProps) Codeview_defineProperties(Constructor.prototype, protoProps); if (staticProps) Codeview_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+/**
+ * @class Codeview
+ */
+
+var Codeview_CodeView = /*#__PURE__*/function () {
+  function CodeView(context) {
+    Codeview_classCallCheck(this, CodeView);
+
+    this.context = context;
+    this.$editor = context.layoutInfo.editor;
+    this.$editable = context.layoutInfo.editable;
+    this.$codable = context.layoutInfo.codable;
+    this.options = context.options;
+    this.CodeMirrorConstructor = window.CodeMirror;
+
+    if (this.options.codemirror.CodeMirrorConstructor) {
+      this.CodeMirrorConstructor = this.options.codemirror.CodeMirrorConstructor;
+    }
+  }
+
+  Codeview_createClass(CodeView, [{
+    key: "sync",
+    value: function sync(html) {
+      var isCodeview = this.isActivated();
+      var CodeMirror = this.CodeMirrorConstructor;
+
+      if (isCodeview) {
+        if (html) {
+          if (CodeMirror) {
+            this.$codable.data('cmEditor').getDoc().setValue(html);
+          } else {
+            this.$codable.val(html);
+          }
+        } else {
+          if (CodeMirror) {
+            this.$codable.data('cmEditor').save();
+          }
+        }
+      }
+    }
+  }, {
+    key: "initialize",
+    value: function initialize() {
+      var _this = this;
+
+      this.$codable.on('keyup', function (event) {
+        if (event.keyCode === core_key.code.ESCAPE) {
+          _this.deactivate();
+        }
+      });
+    }
+    /**
+     * @return {Boolean}
+     */
+
+  }, {
+    key: "isActivated",
+    value: function isActivated() {
+      return this.$editor.hasClass('codeview');
+    }
+    /**
+     * toggle codeview
+     */
+
+  }, {
+    key: "toggle",
+    value: function toggle() {
+      if (this.isActivated()) {
+        this.deactivate();
+      } else {
+        this.activate();
+      }
+
+      this.context.triggerEvent('codeview.toggled');
+    }
+    /**
+     * purify input value
+     * @param value
+     * @returns {*}
+     */
+
+  }, {
+    key: "purify",
+    value: function purify(value) {
+      if (this.options.codeviewFilter) {
+        // filter code view regex
+        value = value.replace(this.options.codeviewFilterRegex, ''); // allow specific iframe tag
+
+        if (this.options.codeviewIframeFilter) {
+          var whitelist = this.options.codeviewIframeWhitelistSrc.concat(this.options.codeviewIframeWhitelistSrcBase);
+          value = value.replace(/(<iframe.*?>.*?(?:<\/iframe>)?)/gi, function (tag) {
+            // remove if src attribute is duplicated
+            if (/<.+src(?==?('|"|\s)?)[\s\S]+src(?=('|"|\s)?)[^>]*?>/i.test(tag)) {
+              return '';
+            }
+
+            var _iterator = _createForOfIteratorHelper(whitelist),
+                _step;
+
+            try {
+              for (_iterator.s(); !(_step = _iterator.n()).done;) {
+                var src = _step.value;
+
+                // pass if src is trusted
+                if (new RegExp('src="(https?:)?\/\/' + src.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '\/(.+)"').test(tag)) {
+                  return tag;
+                }
+              }
+            } catch (err) {
+              _iterator.e(err);
+            } finally {
+              _iterator.f();
+            }
+
+            return '';
+          });
+        }
+      }
+
+      return value;
+    }
+    /**
+     * activate code view
+     */
+
+  }, {
+    key: "activate",
+    value: function activate() {
+      var _this2 = this;
+
+      var CodeMirror = this.CodeMirrorConstructor;
+      this.$codable.val(dom.html(this.$editable, this.options.prettifyHtml));
+      this.$codable.height(this.$editable.height());
+      this.context.invoke('toolbar.updateCodeview', true);
+      this.context.invoke('airPopover.updateCodeview', true);
+      this.$editor.addClass('codeview');
+      this.$codable.focus(); // activate CodeMirror as codable
+
+      if (CodeMirror) {
+        var cmEditor = CodeMirror.fromTextArea(this.$codable[0], this.options.codemirror); // CodeMirror TernServer
+
+        if (this.options.codemirror.tern) {
+          var server = new CodeMirror.TernServer(this.options.codemirror.tern);
+          cmEditor.ternServer = server;
+          cmEditor.on('cursorActivity', function (cm) {
+            server.updateArgHints(cm);
+          });
+        }
+
+        cmEditor.on('blur', function (event) {
+          _this2.context.triggerEvent('blur.codeview', cmEditor.getValue(), event);
+        });
+        cmEditor.on('change', function () {
+          _this2.context.triggerEvent('change.codeview', cmEditor.getValue(), cmEditor);
+        }); // CodeMirror hasn't Padding.
+
+        cmEditor.setSize(null, this.$editable.outerHeight());
+        this.$codable.data('cmEditor', cmEditor);
+      } else {
+        this.$codable.on('blur', function (event) {
+          _this2.context.triggerEvent('blur.codeview', _this2.$codable.val(), event);
+        });
+        this.$codable.on('input', function () {
+          _this2.context.triggerEvent('change.codeview', _this2.$codable.val(), _this2.$codable);
+        });
+      }
+    }
+    /**
+     * deactivate code view
+     */
+
+  }, {
+    key: "deactivate",
+    value: function deactivate() {
+      var CodeMirror = this.CodeMirrorConstructor; // deactivate CodeMirror as codable
+
+      if (CodeMirror) {
+        var cmEditor = this.$codable.data('cmEditor');
+        this.$codable.val(cmEditor.getValue());
+        cmEditor.toTextArea();
+      }
+
+      var value = this.purify(dom.value(this.$codable, this.options.prettifyHtml) || dom.emptyPara);
+      var isChange = this.$editable.html() !== value;
+      this.$editable.html(value);
+      this.$editable.height(this.options.height ? this.$codable.height() : 'auto');
+      this.$editor.removeClass('codeview');
+
+      if (isChange) {
+        this.context.triggerEvent('change', this.$editable.html(), this.$editable);
+      }
+
+      this.$editable.focus();
+      this.context.invoke('toolbar.updateCodeview', false);
+      this.context.invoke('airPopover.updateCodeview', false);
+    }
+  }, {
+    key: "destroy",
+    value: function destroy() {
+      if (this.isActivated()) {
+        this.deactivate();
+      }
+    }
+  }]);
+
+  return CodeView;
+}();
+
+
+// CONCATENATED MODULE: ./src/js/base/module/Statusbar.js
+function Statusbar_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function Statusbar_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function Statusbar_createClass(Constructor, protoProps, staticProps) { if (protoProps) Statusbar_defineProperties(Constructor.prototype, protoProps); if (staticProps) Statusbar_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+var EDITABLE_PADDING = 24;
+
+var Statusbar_Statusbar = /*#__PURE__*/function () {
+  function Statusbar(context) {
+    Statusbar_classCallCheck(this, Statusbar);
+
+    this.$document = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(document);
+    this.$statusbar = context.layoutInfo.statusbar;
+    this.$editable = context.layoutInfo.editable;
+    this.options = context.options;
+  }
+
+  Statusbar_createClass(Statusbar, [{
+    key: "initialize",
+    value: function initialize() {
+      var _this = this;
+
+      if (this.options.airMode || this.options.disableResizeEditor) {
+        this.destroy();
+        return;
+      }
+
+      this.$statusbar.on('mousedown', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        var editableTop = _this.$editable.offset().top - _this.$document.scrollTop();
+
+        var onMouseMove = function onMouseMove(event) {
+          var height = event.clientY - (editableTop + EDITABLE_PADDING);
+          height = _this.options.minheight > 0 ? Math.max(height, _this.options.minheight) : height;
+          height = _this.options.maxHeight > 0 ? Math.min(height, _this.options.maxHeight) : height;
+
+          _this.$editable.height(height);
+        };
+
+        _this.$document.on('mousemove', onMouseMove).one('mouseup', function () {
+          _this.$document.off('mousemove', onMouseMove);
+        });
+      });
+    }
+  }, {
+    key: "destroy",
+    value: function destroy() {
+      this.$statusbar.off();
+      this.$statusbar.addClass('locked');
+    }
+  }]);
+
+  return Statusbar;
+}();
+
+
+// CONCATENATED MODULE: ./src/js/base/module/Fullscreen.js
+function Fullscreen_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function Fullscreen_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function Fullscreen_createClass(Constructor, protoProps, staticProps) { if (protoProps) Fullscreen_defineProperties(Constructor.prototype, protoProps); if (staticProps) Fullscreen_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+var Fullscreen_Fullscreen = /*#__PURE__*/function () {
+  function Fullscreen(context) {
+    var _this = this;
+
+    Fullscreen_classCallCheck(this, Fullscreen);
+
+    this.context = context;
+    this.$editor = context.layoutInfo.editor;
+    this.$toolbar = context.layoutInfo.toolbar;
+    this.$editable = context.layoutInfo.editable;
+    this.$codable = context.layoutInfo.codable;
+    this.$window = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(window);
+    this.$scrollbar = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()('html, body');
+
+    this.onResize = function () {
+      _this.resizeTo({
+        h: _this.$window.height() - _this.$toolbar.outerHeight()
+      });
+    };
+  }
+
+  Fullscreen_createClass(Fullscreen, [{
+    key: "resizeTo",
+    value: function resizeTo(size) {
+      this.$editable.css('height', size.h);
+      this.$codable.css('height', size.h);
+
+      if (this.$codable.data('cmeditor')) {
+        this.$codable.data('cmeditor').setsize(null, size.h);
+      }
+    }
+    /**
+     * toggle fullscreen
+     */
+
+  }, {
+    key: "toggle",
+    value: function toggle() {
+      this.$editor.toggleClass('fullscreen');
+
+      if (this.isFullscreen()) {
+        this.$editable.data('orgHeight', this.$editable.css('height'));
+        this.$editable.data('orgMaxHeight', this.$editable.css('maxHeight'));
+        this.$editable.css('maxHeight', '');
+        this.$window.on('resize', this.onResize).trigger('resize');
+        this.$scrollbar.css('overflow', 'hidden');
+      } else {
+        this.$window.off('resize', this.onResize);
+        this.resizeTo({
+          h: this.$editable.data('orgHeight')
+        });
+        this.$editable.css('maxHeight', this.$editable.css('orgMaxHeight'));
+        this.$scrollbar.css('overflow', 'visible');
+      }
+
+      this.context.invoke('toolbar.updateFullscreen', this.isFullscreen());
+    }
+  }, {
+    key: "isFullscreen",
+    value: function isFullscreen() {
+      return this.$editor.hasClass('fullscreen');
+    }
+  }]);
+
+  return Fullscreen;
+}();
+
+
+// CONCATENATED MODULE: ./src/js/base/module/Handle.js
+function Handle_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function Handle_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function Handle_createClass(Constructor, protoProps, staticProps) { if (protoProps) Handle_defineProperties(Constructor.prototype, protoProps); if (staticProps) Handle_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+
+var Handle_Handle = /*#__PURE__*/function () {
+  function Handle(context) {
+    var _this = this;
+
+    Handle_classCallCheck(this, Handle);
+
+    this.context = context;
+    this.$document = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(document);
+    this.$editingArea = context.layoutInfo.editingArea;
+    this.options = context.options;
+    this.lang = this.options.langInfo;
+    this.events = {
+      'summernote.mousedown': function summernoteMousedown(we, e) {
+        if (_this.update(e.target, e)) {
+          e.preventDefault();
+        }
+      },
+      'summernote.keyup summernote.scroll summernote.change summernote.dialog.shown': function summernoteKeyupSummernoteScrollSummernoteChangeSummernoteDialogShown() {
+        _this.update();
+      },
+      'summernote.disable summernote.blur': function summernoteDisableSummernoteBlur() {
+        _this.hide();
+      },
+      'summernote.codeview.toggled': function summernoteCodeviewToggled() {
+        _this.update();
+      }
+    };
+  }
+
+  Handle_createClass(Handle, [{
+    key: "initialize",
+    value: function initialize() {
+      var _this2 = this;
+
+      this.$handle = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(['<div class="note-handle">', '<div class="note-control-selection">', '<div class="note-control-selection-bg"></div>', '<div class="note-control-holder note-control-nw"></div>', '<div class="note-control-holder note-control-ne"></div>', '<div class="note-control-holder note-control-sw"></div>', '<div class="', this.options.disableResizeImage ? 'note-control-holder' : 'note-control-sizing', ' note-control-se"></div>', this.options.disableResizeImage ? '' : '<div class="note-control-selection-info"></div>', '</div>', '</div>'].join('')).prependTo(this.$editingArea);
+      this.$handle.on('mousedown', function (event) {
+        if (dom.isControlSizing(event.target)) {
+          event.preventDefault();
+          event.stopPropagation();
+
+          var $target = _this2.$handle.find('.note-control-selection').data('target');
+
+          var posStart = $target.offset();
+
+          var scrollTop = _this2.$document.scrollTop();
+
+          var onMouseMove = function onMouseMove(event) {
+            _this2.context.invoke('editor.resizeTo', {
+              x: event.clientX - posStart.left,
+              y: event.clientY - (posStart.top - scrollTop)
+            }, $target, !event.shiftKey);
+
+            _this2.update($target[0], event);
+          };
+
+          _this2.$document.on('mousemove', onMouseMove).one('mouseup', function (e) {
+            e.preventDefault();
+
+            _this2.$document.off('mousemove', onMouseMove);
+
+            _this2.context.invoke('editor.afterCommand');
+          });
+
+          if (!$target.data('ratio')) {
+            // original ratio.
+            $target.data('ratio', $target.height() / $target.width());
+          }
+        }
+      }); // Listen for scrolling on the handle overlay.
+
+      this.$handle.on('wheel', function (e) {
+        e.preventDefault();
+
+        _this2.update();
+      });
+    }
+  }, {
+    key: "destroy",
+    value: function destroy() {
+      this.$handle.remove();
+    }
+  }, {
+    key: "update",
+    value: function update(target, event) {
+      if (this.context.isDisabled()) {
+        return false;
+      }
+
+      var isImage = dom.isImg(target);
+      var $selection = this.$handle.find('.note-control-selection');
+      this.context.invoke('imagePopover.update', target, event);
+
+      if (isImage) {
+        var $image = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(target);
+        var position = $image.position();
+        var pos = {
+          left: position.left + parseInt($image.css('marginLeft'), 10),
+          top: position.top + parseInt($image.css('marginTop'), 10)
+        }; // exclude margin
+
+        var imageSize = {
+          w: $image.outerWidth(false),
+          h: $image.outerHeight(false)
+        };
+        $selection.css({
+          display: 'block',
+          left: pos.left,
+          top: pos.top,
+          width: imageSize.w,
+          height: imageSize.h
+        }).data('target', $image); // save current image element.
+
+        var origImageObj = new Image();
+        origImageObj.src = $image.attr('src');
+        var sizingText = imageSize.w + 'x' + imageSize.h + ' (' + this.lang.image.original + ': ' + origImageObj.width + 'x' + origImageObj.height + ')';
+        $selection.find('.note-control-selection-info').text(sizingText);
+        this.context.invoke('editor.saveTarget', target);
+      } else {
+        this.hide();
+      }
+
+      return isImage;
+    }
+    /**
+     * hide
+     *
+     * @param {jQuery} $handle
+     */
+
+  }, {
+    key: "hide",
+    value: function hide() {
+      this.context.invoke('editor.clearTarget');
+      this.$handle.children().hide();
+    }
+  }]);
+
+  return Handle;
+}();
+
+
+// CONCATENATED MODULE: ./src/js/base/module/AutoLink.js
+function AutoLink_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function AutoLink_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function AutoLink_createClass(Constructor, protoProps, staticProps) { if (protoProps) AutoLink_defineProperties(Constructor.prototype, protoProps); if (staticProps) AutoLink_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+
+var defaultScheme = 'http://';
+var linkPattern = /^([A-Za-z][A-Za-z0-9+-.]*\:[\/]{2}|tel:|mailto:[A-Z0-9._%+-]+@)?(www\.)?(.+)$/i;
+
+var AutoLink_AutoLink = /*#__PURE__*/function () {
+  function AutoLink(context) {
+    var _this = this;
+
+    AutoLink_classCallCheck(this, AutoLink);
+
+    this.context = context;
+    this.options = context.options;
+    this.events = {
+      'summernote.keyup': function summernoteKeyup(we, e) {
+        if (!e.isDefaultPrevented()) {
+          _this.handleKeyup(e);
+        }
+      },
+      'summernote.keydown': function summernoteKeydown(we, e) {
+        _this.handleKeydown(e);
+      }
+    };
+  }
+
+  AutoLink_createClass(AutoLink, [{
+    key: "initialize",
+    value: function initialize() {
+      this.lastWordRange = null;
+    }
+  }, {
+    key: "destroy",
+    value: function destroy() {
+      this.lastWordRange = null;
+    }
+  }, {
+    key: "replace",
+    value: function replace() {
+      if (!this.lastWordRange) {
+        return;
+      }
+
+      var keyword = this.lastWordRange.toString();
+      var match = keyword.match(linkPattern);
+
+      if (match && (match[1] || match[2])) {
+        var link = match[1] ? keyword : defaultScheme + keyword;
+        var urlText = this.options.showDomainOnlyForAutolink ? keyword.replace(/^(?:https?:\/\/)?(?:tel?:?)?(?:mailto?:?)?(?:www\.)?/i, '').split('/')[0] : keyword;
+        var node = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()('<a />').html(urlText).attr('href', link)[0];
+
+        if (this.context.options.linkTargetBlank) {
+          external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(node).attr('target', '_blank');
+        }
+
+        this.lastWordRange.insertNode(node);
+        this.lastWordRange = null;
+        this.context.invoke('editor.focus');
+      }
+    }
+  }, {
+    key: "handleKeydown",
+    value: function handleKeydown(e) {
+      if (lists.contains([core_key.code.ENTER, core_key.code.SPACE], e.keyCode)) {
+        var wordRange = this.context.invoke('editor.createRange').getWordRange();
+        this.lastWordRange = wordRange;
+      }
+    }
+  }, {
+    key: "handleKeyup",
+    value: function handleKeyup(e) {
+      if (lists.contains([core_key.code.ENTER, core_key.code.SPACE], e.keyCode)) {
+        this.replace();
+      }
+    }
+  }]);
+
+  return AutoLink;
+}();
+
+
+// CONCATENATED MODULE: ./src/js/base/module/AutoSync.js
+function AutoSync_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function AutoSync_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function AutoSync_createClass(Constructor, protoProps, staticProps) { if (protoProps) AutoSync_defineProperties(Constructor.prototype, protoProps); if (staticProps) AutoSync_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+/**
+ * textarea auto sync.
+ */
+
+var AutoSync_AutoSync = /*#__PURE__*/function () {
+  function AutoSync(context) {
+    var _this = this;
+
+    AutoSync_classCallCheck(this, AutoSync);
+
+    this.$note = context.layoutInfo.note;
+    this.events = {
+      'summernote.change': function summernoteChange() {
+        _this.$note.val(context.invoke('code'));
+      }
+    };
+  }
+
+  AutoSync_createClass(AutoSync, [{
+    key: "shouldInitialize",
+    value: function shouldInitialize() {
+      return dom.isTextarea(this.$note[0]);
+    }
+  }]);
+
+  return AutoSync;
+}();
+
+
+// CONCATENATED MODULE: ./src/js/base/module/AutoReplace.js
+function AutoReplace_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function AutoReplace_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function AutoReplace_createClass(Constructor, protoProps, staticProps) { if (protoProps) AutoReplace_defineProperties(Constructor.prototype, protoProps); if (staticProps) AutoReplace_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+
+
+var AutoReplace_AutoReplace = /*#__PURE__*/function () {
+  function AutoReplace(context) {
+    var _this = this;
+
+    AutoReplace_classCallCheck(this, AutoReplace);
+
+    this.context = context;
+    this.options = context.options.replace || {};
+    this.keys = [core_key.code.ENTER, core_key.code.SPACE, core_key.code.PERIOD, core_key.code.COMMA, core_key.code.SEMICOLON, core_key.code.SLASH];
+    this.previousKeydownCode = null;
+    this.events = {
+      'summernote.keyup': function summernoteKeyup(we, e) {
+        if (!e.isDefaultPrevented()) {
+          _this.handleKeyup(e);
+        }
+      },
+      'summernote.keydown': function summernoteKeydown(we, e) {
+        _this.handleKeydown(e);
+      }
+    };
+  }
+
+  AutoReplace_createClass(AutoReplace, [{
+    key: "shouldInitialize",
+    value: function shouldInitialize() {
+      return !!this.options.match;
+    }
+  }, {
+    key: "initialize",
+    value: function initialize() {
+      this.lastWord = null;
+    }
+  }, {
+    key: "destroy",
+    value: function destroy() {
+      this.lastWord = null;
+    }
+  }, {
+    key: "replace",
+    value: function replace() {
+      if (!this.lastWord) {
+        return;
+      }
+
+      var self = this;
+      var keyword = this.lastWord.toString();
+      this.options.match(keyword, function (match) {
+        if (match) {
+          var node = '';
+
+          if (typeof match === 'string') {
+            node = dom.createText(match);
+          } else if (match instanceof jQuery) {
+            node = match[0];
+          } else if (match instanceof Node) {
+            node = match;
+          }
+
+          if (!node) return;
+          self.lastWord.insertNode(node);
+          self.lastWord = null;
+          self.context.invoke('editor.focus');
+        }
+      });
+    }
+  }, {
+    key: "handleKeydown",
+    value: function handleKeydown(e) {
+      // this forces it to remember the last whole word, even if multiple termination keys are pressed
+      // before the previous key is let go.
+      if (this.previousKeydownCode && lists.contains(this.keys, this.previousKeydownCode)) {
+        this.previousKeydownCode = e.keyCode;
+        return;
+      }
+
+      if (lists.contains(this.keys, e.keyCode)) {
+        var wordRange = this.context.invoke('editor.createRange').getWordRange();
+        this.lastWord = wordRange;
+      }
+
+      this.previousKeydownCode = e.keyCode;
+    }
+  }, {
+    key: "handleKeyup",
+    value: function handleKeyup(e) {
+      if (lists.contains(this.keys, e.keyCode)) {
+        this.replace();
+      }
+    }
+  }]);
+
+  return AutoReplace;
+}();
+
+
+// CONCATENATED MODULE: ./src/js/base/module/Placeholder.js
+function Placeholder_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function Placeholder_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function Placeholder_createClass(Constructor, protoProps, staticProps) { if (protoProps) Placeholder_defineProperties(Constructor.prototype, protoProps); if (staticProps) Placeholder_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+var Placeholder_Placeholder = /*#__PURE__*/function () {
+  function Placeholder(context) {
+    var _this = this;
+
+    Placeholder_classCallCheck(this, Placeholder);
+
+    this.context = context;
+    this.$editingArea = context.layoutInfo.editingArea;
+    this.options = context.options;
+
+    if (this.options.inheritPlaceholder === true) {
+      // get placeholder value from the original element
+      this.options.placeholder = this.context.$note.attr('placeholder') || this.options.placeholder;
+    }
+
+    this.events = {
+      'summernote.init summernote.change': function summernoteInitSummernoteChange() {
+        _this.update();
+      },
+      'summernote.codeview.toggled': function summernoteCodeviewToggled() {
+        _this.update();
+      }
+    };
+  }
+
+  Placeholder_createClass(Placeholder, [{
+    key: "shouldInitialize",
+    value: function shouldInitialize() {
+      return !!this.options.placeholder;
+    }
+  }, {
+    key: "initialize",
+    value: function initialize() {
+      var _this2 = this;
+
+      this.$placeholder = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()('<div class="note-placeholder">');
+      this.$placeholder.on('click', function () {
+        _this2.context.invoke('focus');
+      }).html(this.options.placeholder).prependTo(this.$editingArea);
+      this.update();
+    }
+  }, {
+    key: "destroy",
+    value: function destroy() {
+      this.$placeholder.remove();
+    }
+  }, {
+    key: "update",
+    value: function update() {
+      var isShow = !this.context.invoke('codeview.isActivated') && this.context.invoke('editor.isEmpty');
+      this.$placeholder.toggle(isShow);
+    }
+  }]);
+
+  return Placeholder;
+}();
+
+
+// CONCATENATED MODULE: ./src/js/base/module/Buttons.js
+function Buttons_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function Buttons_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function Buttons_createClass(Constructor, protoProps, staticProps) { if (protoProps) Buttons_defineProperties(Constructor.prototype, protoProps); if (staticProps) Buttons_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+
+
+
+var Buttons_Buttons = /*#__PURE__*/function () {
+  function Buttons(context) {
+    Buttons_classCallCheck(this, Buttons);
+
+    this.ui = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.summernote.ui;
+    this.context = context;
+    this.$toolbar = context.layoutInfo.toolbar;
+    this.options = context.options;
+    this.lang = this.options.langInfo;
+    this.invertedKeyMap = func.invertObject(this.options.keyMap[env.isMac ? 'mac' : 'pc']);
+  }
+
+  Buttons_createClass(Buttons, [{
+    key: "representShortcut",
+    value: function representShortcut(editorMethod) {
+      var shortcut = this.invertedKeyMap[editorMethod];
+
+      if (!this.options.shortcuts || !shortcut) {
+        return '';
+      }
+
+      if (env.isMac) {
+        shortcut = shortcut.replace('CMD', '⌘').replace('SHIFT', '⇧');
+      }
+
+      shortcut = shortcut.replace('BACKSLASH', '\\').replace('SLASH', '/').replace('LEFTBRACKET', '[').replace('RIGHTBRACKET', ']');
+      return ' (' + shortcut + ')';
+    }
+  }, {
+    key: "button",
+    value: function button(o) {
+      if (!this.options.tooltip && o.tooltip) {
+        delete o.tooltip;
+      }
+
+      o.container = this.options.container;
+      return this.ui.button(o);
+    }
+  }, {
+    key: "initialize",
+    value: function initialize() {
+      this.addToolbarButtons();
+      this.addImagePopoverButtons();
+      this.addLinkPopoverButtons();
+      this.addTablePopoverButtons();
+      this.fontInstalledMap = {};
+    }
+  }, {
+    key: "destroy",
+    value: function destroy() {
+      delete this.fontInstalledMap;
+    }
+  }, {
+    key: "isFontInstalled",
+    value: function isFontInstalled(name) {
+      if (!Object.prototype.hasOwnProperty.call(this.fontInstalledMap, name)) {
+        this.fontInstalledMap[name] = env.isFontInstalled(name) || lists.contains(this.options.fontNamesIgnoreCheck, name);
+      }
+
+      return this.fontInstalledMap[name];
+    }
+  }, {
+    key: "isFontDeservedToAdd",
+    value: function isFontDeservedToAdd(name) {
+      name = name.toLowerCase();
+      return name !== '' && this.isFontInstalled(name) && env.genericFontFamilies.indexOf(name) === -1;
+    }
+  }, {
+    key: "colorPalette",
+    value: function colorPalette(className, tooltip, backColor, foreColor) {
+      var _this = this;
+
+      return this.ui.buttonGroup({
+        className: 'note-color ' + className,
+        children: [this.button({
+          className: 'note-current-color-button',
+          contents: this.ui.icon(this.options.icons.font + ' note-recent-color'),
+          tooltip: tooltip,
+          click: function click(e) {
+            var $button = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(e.currentTarget);
+
+            if (backColor && foreColor) {
+              _this.context.invoke('editor.color', {
+                backColor: $button.attr('data-backColor'),
+                foreColor: $button.attr('data-foreColor')
+              });
+            } else if (backColor) {
+              _this.context.invoke('editor.color', {
+                backColor: $button.attr('data-backColor')
+              });
+            } else if (foreColor) {
+              _this.context.invoke('editor.color', {
+                foreColor: $button.attr('data-foreColor')
+              });
+            }
+          },
+          callback: function callback($button) {
+            var $recentColor = $button.find('.note-recent-color');
+
+            if (backColor) {
+              $recentColor.css('background-color', _this.options.colorButton.backColor);
+              $button.attr('data-backColor', _this.options.colorButton.backColor);
+            }
+
+            if (foreColor) {
+              $recentColor.css('color', _this.options.colorButton.foreColor);
+              $button.attr('data-foreColor', _this.options.colorButton.foreColor);
+            } else {
+              $recentColor.css('color', 'transparent');
+            }
+          }
+        }), this.button({
+          className: 'dropdown-toggle',
+          contents: this.ui.dropdownButtonContents('', this.options),
+          tooltip: this.lang.color.more,
+          data: {
+            toggle: 'dropdown'
+          }
+        }), this.ui.dropdown({
+          items: (backColor ? ['<div class="note-palette">', '<div class="note-palette-title">' + this.lang.color.background + '</div>', '<div>', '<button type="button" class="note-color-reset btn btn-light btn-default" data-event="backColor" data-value="transparent">', this.lang.color.transparent, '</button>', '</div>', '<div class="note-holder" data-event="backColor"><!-- back colors --></div>', '<div>', '<button type="button" class="note-color-select btn btn-light btn-default" data-event="openPalette" data-value="backColorPicker">', this.lang.color.cpSelect, '</button>', '<input type="color" id="backColorPicker" class="note-btn note-color-select-btn" value="' + this.options.colorButton.backColor + '" data-event="backColorPalette">', '</div>', '<div class="note-holder-custom" id="backColorPalette" data-event="backColor"></div>', '</div>'].join('') : '') + (foreColor ? ['<div class="note-palette">', '<div class="note-palette-title">' + this.lang.color.foreground + '</div>', '<div>', '<button type="button" class="note-color-reset btn btn-light btn-default" data-event="removeFormat" data-value="foreColor">', this.lang.color.resetToDefault, '</button>', '</div>', '<div class="note-holder" data-event="foreColor"><!-- fore colors --></div>', '<div>', '<button type="button" class="note-color-select btn btn-light btn-default" data-event="openPalette" data-value="foreColorPicker">', this.lang.color.cpSelect, '</button>', '<input type="color" id="foreColorPicker" class="note-btn note-color-select-btn" value="' + this.options.colorButton.foreColor + '" data-event="foreColorPalette">', '</div>', // Fix missing Div, Commented to find easily if it's wrong
+          '<div class="note-holder-custom" id="foreColorPalette" data-event="foreColor"></div>', '</div>'].join('') : ''),
+          callback: function callback($dropdown) {
+            $dropdown.find('.note-holder').each(function (idx, item) {
+              var $holder = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(item);
+              $holder.append(_this.ui.palette({
+                colors: _this.options.colors,
+                colorsName: _this.options.colorsName,
+                eventName: $holder.data('event'),
+                container: _this.options.container,
+                tooltip: _this.options.tooltip
+              }).render());
+            });
+            /* TODO: do we have to record recent custom colors within cookies? */
+
+            var customColors = [['#FFFFFF', '#FFFFFF', '#FFFFFF', '#FFFFFF', '#FFFFFF', '#FFFFFF', '#FFFFFF', '#FFFFFF']];
+            $dropdown.find('.note-holder-custom').each(function (idx, item) {
+              var $holder = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(item);
+              $holder.append(_this.ui.palette({
+                colors: customColors,
+                colorsName: customColors,
+                even

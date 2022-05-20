@@ -1,0 +1,1530 @@
+= 'right') {
+              var colspanNumber = parseInt(currentCell.baseCell.colSpan, 10);
+              colspanNumber++;
+              currentCell.baseCell.setAttribute('colSpan', colspanNumber);
+            } else {
+              external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(currentCell.baseCell).before('<td' + tdAttributes + '>' + dom.blank + '</td>');
+            }
+
+            break;
+        }
+      }
+    }
+    /*
+    * Copy attributes from element.
+    *
+    * @param {object} Element to recover attributes.
+    * @return {string} Copied string elements.
+    */
+
+  }, {
+    key: "recoverAttributes",
+    value: function recoverAttributes(el) {
+      var resultStr = '';
+
+      if (!el) {
+        return resultStr;
+      }
+
+      var attrList = el.attributes || [];
+
+      for (var i = 0; i < attrList.length; i++) {
+        if (attrList[i].name.toLowerCase() === 'id') {
+          continue;
+        }
+
+        if (attrList[i].specified) {
+          resultStr += ' ' + attrList[i].name + '=\'' + attrList[i].value + '\'';
+        }
+      }
+
+      return resultStr;
+    }
+    /**
+     * Delete current row
+     *
+     * @param {WrappedRange} rng
+     * @return {Node}
+     */
+
+  }, {
+    key: "deleteRow",
+    value: function deleteRow(rng) {
+      var cell = dom.ancestor(rng.commonAncestor(), dom.isCell);
+      var row = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(cell).closest('tr');
+      var cellPos = row.children('td, th').index(external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(cell));
+      var rowPos = row[0].rowIndex;
+      var vTable = new TableResultAction(cell, TableResultAction.where.Row, TableResultAction.requestAction.Delete, external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(row).closest('table')[0]);
+      var actions = vTable.getActionList();
+
+      for (var actionIndex = 0; actionIndex < actions.length; actionIndex++) {
+        if (!actions[actionIndex]) {
+          continue;
+        }
+
+        var baseCell = actions[actionIndex].baseCell;
+        var virtualPosition = actions[actionIndex].virtualTable;
+        var hasRowspan = baseCell.rowSpan && baseCell.rowSpan > 1;
+        var rowspanNumber = hasRowspan ? parseInt(baseCell.rowSpan, 10) : 0;
+
+        switch (actions[actionIndex].action) {
+          case TableResultAction.resultAction.Ignore:
+            continue;
+
+          case TableResultAction.resultAction.AddCell:
+            {
+              var nextRow = row.next('tr')[0];
+
+              if (!nextRow) {
+                continue;
+              }
+
+              var cloneRow = row[0].cells[cellPos];
+
+              if (hasRowspan) {
+                if (rowspanNumber > 2) {
+                  rowspanNumber--;
+                  nextRow.insertBefore(cloneRow, nextRow.cells[cellPos]);
+                  nextRow.cells[cellPos].setAttribute('rowSpan', rowspanNumber);
+                  nextRow.cells[cellPos].innerHTML = '';
+                } else if (rowspanNumber === 2) {
+                  nextRow.insertBefore(cloneRow, nextRow.cells[cellPos]);
+                  nextRow.cells[cellPos].removeAttribute('rowSpan');
+                  nextRow.cells[cellPos].innerHTML = '';
+                }
+              }
+            }
+            continue;
+
+          case TableResultAction.resultAction.SubtractSpanCount:
+            if (hasRowspan) {
+              if (rowspanNumber > 2) {
+                rowspanNumber--;
+                baseCell.setAttribute('rowSpan', rowspanNumber);
+
+                if (virtualPosition.rowIndex !== rowPos && baseCell.cellIndex === cellPos) {
+                  baseCell.innerHTML = '';
+                }
+              } else if (rowspanNumber === 2) {
+                baseCell.removeAttribute('rowSpan');
+
+                if (virtualPosition.rowIndex !== rowPos && baseCell.cellIndex === cellPos) {
+                  baseCell.innerHTML = '';
+                }
+              }
+            }
+
+            continue;
+
+          case TableResultAction.resultAction.RemoveCell:
+            // Do not need remove cell because row will be deleted.
+            continue;
+        }
+      }
+
+      row.remove();
+    }
+    /**
+     * Delete current col
+     *
+     * @param {WrappedRange} rng
+     * @return {Node}
+     */
+
+  }, {
+    key: "deleteCol",
+    value: function deleteCol(rng) {
+      var cell = dom.ancestor(rng.commonAncestor(), dom.isCell);
+      var row = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(cell).closest('tr');
+      var cellPos = row.children('td, th').index(external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(cell));
+      var vTable = new TableResultAction(cell, TableResultAction.where.Column, TableResultAction.requestAction.Delete, external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(row).closest('table')[0]);
+      var actions = vTable.getActionList();
+
+      for (var actionIndex = 0; actionIndex < actions.length; actionIndex++) {
+        if (!actions[actionIndex]) {
+          continue;
+        }
+
+        switch (actions[actionIndex].action) {
+          case TableResultAction.resultAction.Ignore:
+            continue;
+
+          case TableResultAction.resultAction.SubtractSpanCount:
+            {
+              var baseCell = actions[actionIndex].baseCell;
+              var hasColspan = baseCell.colSpan && baseCell.colSpan > 1;
+
+              if (hasColspan) {
+                var colspanNumber = baseCell.colSpan ? parseInt(baseCell.colSpan, 10) : 0;
+
+                if (colspanNumber > 2) {
+                  colspanNumber--;
+                  baseCell.setAttribute('colSpan', colspanNumber);
+
+                  if (baseCell.cellIndex === cellPos) {
+                    baseCell.innerHTML = '';
+                  }
+                } else if (colspanNumber === 2) {
+                  baseCell.removeAttribute('colSpan');
+
+                  if (baseCell.cellIndex === cellPos) {
+                    baseCell.innerHTML = '';
+                  }
+                }
+              }
+            }
+            continue;
+
+          case TableResultAction.resultAction.RemoveCell:
+            dom.remove(actions[actionIndex].baseCell, true);
+            continue;
+        }
+      }
+    }
+    /**
+     * create empty table element
+     *
+     * @param {Number} rowCount
+     * @param {Number} colCount
+     * @return {Node}
+     */
+
+  }, {
+    key: "createTable",
+    value: function createTable(colCount, rowCount, options) {
+      var tds = [];
+      var tdHTML;
+
+      for (var idxCol = 0; idxCol < colCount; idxCol++) {
+        tds.push('<td>' + dom.blank + '</td>');
+      }
+
+      tdHTML = tds.join('');
+      var trs = [];
+      var trHTML;
+
+      for (var idxRow = 0; idxRow < rowCount; idxRow++) {
+        trs.push('<tr>' + tdHTML + '</tr>');
+      }
+
+      trHTML = trs.join('');
+      var $table = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()('<table>' + trHTML + '</table>');
+
+      if (options && options.tableClassName) {
+        $table.addClass(options.tableClassName);
+      }
+
+      return $table[0];
+    }
+    /**
+     * Delete current table
+     *
+     * @param {WrappedRange} rng
+     * @return {Node}
+     */
+
+  }, {
+    key: "deleteTable",
+    value: function deleteTable(rng) {
+      var cell = dom.ancestor(rng.commonAncestor(), dom.isCell);
+      external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(cell).closest('table').remove();
+    }
+  }]);
+
+  return Table;
+}();
+
+
+// CONCATENATED MODULE: ./src/js/base/module/Editor.js
+function Editor_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function Editor_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function Editor_createClass(Constructor, protoProps, staticProps) { if (protoProps) Editor_defineProperties(Constructor.prototype, protoProps); if (staticProps) Editor_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+var KEY_BOGUS = 'bogus';
+/**
+ * @class Editor
+ */
+
+var Editor_Editor = /*#__PURE__*/function () {
+  function Editor(context) {
+    var _this = this;
+
+    Editor_classCallCheck(this, Editor);
+
+    this.context = context;
+    this.$note = context.layoutInfo.note;
+    this.$editor = context.layoutInfo.editor;
+    this.$editable = context.layoutInfo.editable;
+    this.options = context.options;
+    this.lang = this.options.langInfo;
+    this.editable = this.$editable[0];
+    this.lastRange = null;
+    this.snapshot = null;
+    this.style = new Style_Style();
+    this.table = new Table_Table();
+    this.typing = new Typing_Typing(context);
+    this.bullet = new Bullet_Bullet();
+    this.history = new History_History(context);
+    this.context.memo('help.escape', this.lang.help.escape);
+    this.context.memo('help.undo', this.lang.help.undo);
+    this.context.memo('help.redo', this.lang.help.redo);
+    this.context.memo('help.tab', this.lang.help.tab);
+    this.context.memo('help.untab', this.lang.help.untab);
+    this.context.memo('help.insertParagraph', this.lang.help.insertParagraph);
+    this.context.memo('help.insertOrderedList', this.lang.help.insertOrderedList);
+    this.context.memo('help.insertUnorderedList', this.lang.help.insertUnorderedList);
+    this.context.memo('help.indent', this.lang.help.indent);
+    this.context.memo('help.outdent', this.lang.help.outdent);
+    this.context.memo('help.formatPara', this.lang.help.formatPara);
+    this.context.memo('help.insertHorizontalRule', this.lang.help.insertHorizontalRule);
+    this.context.memo('help.fontName', this.lang.help.fontName); // native commands(with execCommand), generate function for execCommand
+
+    var commands = ['bold', 'italic', 'underline', 'strikethrough', 'superscript', 'subscript', 'justifyLeft', 'justifyCenter', 'justifyRight', 'justifyFull', 'formatBlock', 'removeFormat', 'backColor'];
+
+    for (var idx = 0, len = commands.length; idx < len; idx++) {
+      this[commands[idx]] = function (sCmd) {
+        return function (value) {
+          _this.beforeCommand();
+
+          document.execCommand(sCmd, false, value);
+
+          _this.afterCommand(true);
+        };
+      }(commands[idx]);
+
+      this.context.memo('help.' + commands[idx], this.lang.help[commands[idx]]);
+    }
+
+    this.fontName = this.wrapCommand(function (value) {
+      return _this.fontStyling('font-family', env.validFontName(value));
+    });
+    this.fontSize = this.wrapCommand(function (value) {
+      var unit = _this.currentStyle()['font-size-unit'];
+
+      return _this.fontStyling('font-size', value + unit);
+    });
+    this.fontSizeUnit = this.wrapCommand(function (value) {
+      var size = _this.currentStyle()['font-size'];
+
+      return _this.fontStyling('font-size', size + value);
+    });
+
+    for (var _idx = 1; _idx <= 6; _idx++) {
+      this['formatH' + _idx] = function (idx) {
+        return function () {
+          _this.formatBlock('H' + idx);
+        };
+      }(_idx);
+
+      this.context.memo('help.formatH' + _idx, this.lang.help['formatH' + _idx]);
+    }
+
+    this.insertParagraph = this.wrapCommand(function () {
+      _this.typing.insertParagraph(_this.editable);
+    });
+    this.insertOrderedList = this.wrapCommand(function () {
+      _this.bullet.insertOrderedList(_this.editable);
+    });
+    this.insertUnorderedList = this.wrapCommand(function () {
+      _this.bullet.insertUnorderedList(_this.editable);
+    });
+    this.indent = this.wrapCommand(function () {
+      _this.bullet.indent(_this.editable);
+    });
+    this.outdent = this.wrapCommand(function () {
+      _this.bullet.outdent(_this.editable);
+    });
+    /**
+     * insertNode
+     * insert node
+     * @param {Node} node
+     */
+
+    this.insertNode = this.wrapCommand(function (node) {
+      if (_this.isLimited(external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(node).text().length)) {
+        return;
+      }
+
+      var rng = _this.getLastRange();
+
+      rng.insertNode(node);
+
+      _this.setLastRange(range.createFromNodeAfter(node).select());
+    });
+    /**
+     * insert text
+     * @param {String} text
+     */
+
+    this.insertText = this.wrapCommand(function (text) {
+      if (_this.isLimited(text.length)) {
+        return;
+      }
+
+      var rng = _this.getLastRange();
+
+      var textNode = rng.insertNode(dom.createText(text));
+
+      _this.setLastRange(range.create(textNode, dom.nodeLength(textNode)).select());
+    });
+    /**
+     * paste HTML
+     * @param {String} markup
+     */
+
+    this.pasteHTML = this.wrapCommand(function (markup) {
+      if (_this.isLimited(markup.length)) {
+        return;
+      }
+
+      markup = _this.context.invoke('codeview.purify', markup);
+
+      var contents = _this.getLastRange().pasteHTML(markup);
+
+      _this.setLastRange(range.createFromNodeAfter(lists.last(contents)).select());
+    });
+    /**
+     * formatBlock
+     *
+     * @param {String} tagName
+     */
+
+    this.formatBlock = this.wrapCommand(function (tagName, $target) {
+      var onApplyCustomStyle = _this.options.callbacks.onApplyCustomStyle;
+
+      if (onApplyCustomStyle) {
+        onApplyCustomStyle.call(_this, $target, _this.context, _this.onFormatBlock);
+      } else {
+        _this.onFormatBlock(tagName, $target);
+      }
+    });
+    /**
+     * insert horizontal rule
+     */
+
+    this.insertHorizontalRule = this.wrapCommand(function () {
+      var hrNode = _this.getLastRange().insertNode(dom.create('HR'));
+
+      if (hrNode.nextSibling) {
+        _this.setLastRange(range.create(hrNode.nextSibling, 0).normalize().select());
+      }
+    });
+    /**
+     * lineHeight
+     * @param {String} value
+     */
+
+    this.lineHeight = this.wrapCommand(function (value) {
+      _this.style.stylePara(_this.getLastRange(), {
+        lineHeight: value
+      });
+    });
+    /**
+     * create link (command)
+     *
+     * @param {Object} linkInfo
+     */
+
+    this.createLink = this.wrapCommand(function (linkInfo) {
+      var linkUrl = linkInfo.url;
+      var linkText = linkInfo.text;
+      var isNewWindow = linkInfo.isNewWindow;
+      var checkProtocol = linkInfo.checkProtocol;
+
+      var rng = linkInfo.range || _this.getLastRange();
+
+      var additionalTextLength = linkText.length - rng.toString().length;
+
+      if (additionalTextLength > 0 && _this.isLimited(additionalTextLength)) {
+        return;
+      }
+
+      var isTextChanged = rng.toString() !== linkText; // handle spaced urls from input
+
+      if (typeof linkUrl === 'string') {
+        linkUrl = linkUrl.trim();
+      }
+
+      if (_this.options.onCreateLink) {
+        linkUrl = _this.options.onCreateLink(linkUrl);
+      } else if (checkProtocol) {
+        // if url doesn't have any protocol and not even a relative or a label, use http:// as default
+        linkUrl = /^([A-Za-z][A-Za-z0-9+-.]*\:|#|\/)/.test(linkUrl) ? linkUrl : _this.options.defaultProtocol + linkUrl;
+      }
+
+      var anchors = [];
+
+      if (isTextChanged) {
+        rng = rng.deleteContents();
+        var anchor = rng.insertNode(external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()('<A>' + linkText + '</A>')[0]);
+        anchors.push(anchor);
+      } else {
+        anchors = _this.style.styleNodes(rng, {
+          nodeName: 'A',
+          expandClosestSibling: true,
+          onlyPartialContains: true
+        });
+      }
+
+      external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(anchors, function (idx, anchor) {
+        external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(anchor).attr('href', linkUrl);
+
+        if (isNewWindow) {
+          external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(anchor).attr('target', '_blank');
+        } else {
+          external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(anchor).removeAttr('target');
+        }
+      });
+
+      _this.setLastRange(_this.createRangeFromList(anchors).select());
+    });
+    /**
+     * setting color
+     *
+     * @param {Object} sObjColor  color code
+     * @param {String} sObjColor.foreColor foreground color
+     * @param {String} sObjColor.backColor background color
+     */
+
+    this.color = this.wrapCommand(function (colorInfo) {
+      var foreColor = colorInfo.foreColor;
+      var backColor = colorInfo.backColor;
+
+      if (foreColor) {
+        document.execCommand('foreColor', false, foreColor);
+      }
+
+      if (backColor) {
+        document.execCommand('backColor', false, backColor);
+      }
+    });
+    /**
+     * Set foreground color
+     *
+     * @param {String} colorCode foreground color code
+     */
+
+    this.foreColor = this.wrapCommand(function (colorInfo) {
+      document.execCommand('foreColor', false, colorInfo);
+    });
+    /**
+     * insert Table
+     *
+     * @param {String} dimension of table (ex : "5x5")
+     */
+
+    this.insertTable = this.wrapCommand(function (dim) {
+      var dimension = dim.split('x');
+
+      var rng = _this.getLastRange().deleteContents();
+
+      rng.insertNode(_this.table.createTable(dimension[0], dimension[1], _this.options));
+    });
+    /**
+     * remove media object and Figure Elements if media object is img with Figure.
+     */
+
+    this.removeMedia = this.wrapCommand(function () {
+      var $target = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(_this.restoreTarget()).parent();
+
+      if ($target.closest('figure').length) {
+        $target.closest('figure').remove();
+      } else {
+        $target = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(_this.restoreTarget()).detach();
+      }
+
+      _this.context.triggerEvent('media.delete', $target, _this.$editable);
+    });
+    /**
+     * float me
+     *
+     * @param {String} value
+     */
+
+    this.floatMe = this.wrapCommand(function (value) {
+      var $target = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(_this.restoreTarget());
+      $target.toggleClass('note-float-left', value === 'left');
+      $target.toggleClass('note-float-right', value === 'right');
+      $target.css('float', value === 'none' ? '' : value);
+    });
+    /**
+     * resize overlay element
+     * @param {String} value
+     */
+
+    this.resize = this.wrapCommand(function (value) {
+      var $target = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(_this.restoreTarget());
+      value = parseFloat(value);
+
+      if (value === 0) {
+        $target.css('width', '');
+      } else {
+        $target.css({
+          width: value * 100 + '%',
+          height: ''
+        });
+      }
+    });
+  }
+
+  Editor_createClass(Editor, [{
+    key: "initialize",
+    value: function initialize() {
+      var _this2 = this;
+
+      // bind custom events
+      this.$editable.on('keydown', function (event) {
+        if (event.keyCode === core_key.code.ENTER) {
+          _this2.context.triggerEvent('enter', event);
+        }
+
+        _this2.context.triggerEvent('keydown', event); // keep a snapshot to limit text on input event
+
+
+        _this2.snapshot = _this2.history.makeSnapshot();
+        _this2.hasKeyShortCut = false;
+
+        if (!event.isDefaultPrevented()) {
+          if (_this2.options.shortcuts) {
+            _this2.hasKeyShortCut = _this2.handleKeyMap(event);
+          } else {
+            _this2.preventDefaultEditableShortCuts(event);
+          }
+        }
+
+        if (_this2.isLimited(1, event)) {
+          var lastRange = _this2.getLastRange();
+
+          if (lastRange.eo - lastRange.so === 0) {
+            return false;
+          }
+        }
+
+        _this2.setLastRange(); // record undo in the key event except keyMap.
+
+
+        if (_this2.options.recordEveryKeystroke) {
+          if (_this2.hasKeyShortCut === false) {
+            _this2.history.recordUndo();
+          }
+        }
+      }).on('keyup', function (event) {
+        _this2.setLastRange();
+
+        _this2.context.triggerEvent('keyup', event);
+      }).on('focus', function (event) {
+        _this2.setLastRange();
+
+        _this2.context.triggerEvent('focus', event);
+      }).on('blur', function (event) {
+        _this2.context.triggerEvent('blur', event);
+      }).on('mousedown', function (event) {
+        _this2.context.triggerEvent('mousedown', event);
+      }).on('mouseup', function (event) {
+        _this2.setLastRange();
+
+        _this2.history.recordUndo();
+
+        _this2.context.triggerEvent('mouseup', event);
+      }).on('scroll', function (event) {
+        _this2.context.triggerEvent('scroll', event);
+      }).on('paste', function (event) {
+        _this2.setLastRange();
+
+        _this2.context.triggerEvent('paste', event);
+      }).on('input', function () {
+        // To limit composition characters (e.g. Korean)
+        if (_this2.isLimited(0) && _this2.snapshot) {
+          _this2.history.applySnapshot(_this2.snapshot);
+        }
+      });
+      this.$editable.attr('spellcheck', this.options.spellCheck);
+      this.$editable.attr('autocorrect', this.options.spellCheck);
+
+      if (this.options.disableGrammar) {
+        this.$editable.attr('data-gramm', false);
+      } // init content before set event
+
+
+      this.$editable.html(dom.html(this.$note) || dom.emptyPara);
+      this.$editable.on(env.inputEventName, func.debounce(function () {
+        _this2.context.triggerEvent('change', _this2.$editable.html(), _this2.$editable);
+      }, 10));
+      this.$editable.on('focusin', function (event) {
+        _this2.context.triggerEvent('focusin', event);
+      }).on('focusout', function (event) {
+        _this2.context.triggerEvent('focusout', event);
+      });
+
+      if (this.options.airMode) {
+        if (this.options.overrideContextMenu) {
+          this.$editor.on('contextmenu', function (event) {
+            _this2.context.triggerEvent('contextmenu', event);
+
+            return false;
+          });
+        }
+      } else {
+        if (this.options.width) {
+          this.$editor.outerWidth(this.options.width);
+        }
+
+        if (this.options.height) {
+          this.$editable.outerHeight(this.options.height);
+        }
+
+        if (this.options.maxHeight) {
+          this.$editable.css('max-height', this.options.maxHeight);
+        }
+
+        if (this.options.minHeight) {
+          this.$editable.css('min-height', this.options.minHeight);
+        }
+      }
+
+      this.history.recordUndo();
+      this.setLastRange();
+    }
+  }, {
+    key: "destroy",
+    value: function destroy() {
+      this.$editable.off();
+    }
+  }, {
+    key: "handleKeyMap",
+    value: function handleKeyMap(event) {
+      var keyMap = this.options.keyMap[env.isMac ? 'mac' : 'pc'];
+      var keys = [];
+
+      if (event.metaKey) {
+        keys.push('CMD');
+      }
+
+      if (event.ctrlKey && !event.altKey) {
+        keys.push('CTRL');
+      }
+
+      if (event.shiftKey) {
+        keys.push('SHIFT');
+      }
+
+      var keyName = core_key.nameFromCode[event.keyCode];
+
+      if (keyName) {
+        keys.push(keyName);
+      }
+
+      var eventName = keyMap[keys.join('+')];
+
+      if (keyName === 'TAB' && !this.options.tabDisable) {
+        this.afterCommand();
+      } else if (eventName) {
+        if (this.context.invoke(eventName) !== false) {
+          event.preventDefault(); // if keyMap action was invoked
+
+          return true;
+        }
+      } else if (core_key.isEdit(event.keyCode)) {
+        this.afterCommand();
+      }
+
+      return false;
+    }
+  }, {
+    key: "preventDefaultEditableShortCuts",
+    value: function preventDefaultEditableShortCuts(event) {
+      // B(Bold, 66) / I(Italic, 73) / U(Underline, 85)
+      if ((event.ctrlKey || event.metaKey) && lists.contains([66, 73, 85], event.keyCode)) {
+        event.preventDefault();
+      }
+    }
+  }, {
+    key: "isLimited",
+    value: function isLimited(pad, event) {
+      pad = pad || 0;
+
+      if (typeof event !== 'undefined') {
+        if (core_key.isMove(event.keyCode) || core_key.isNavigation(event.keyCode) || event.ctrlKey || event.metaKey || lists.contains([core_key.code.BACKSPACE, core_key.code.DELETE], event.keyCode)) {
+          return false;
+        }
+      }
+
+      if (this.options.maxTextLength > 0) {
+        if (this.$editable.text().length + pad > this.options.maxTextLength) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+    /**
+     * create range
+     * @return {WrappedRange}
+     */
+
+  }, {
+    key: "createRange",
+    value: function createRange() {
+      this.focus();
+      this.setLastRange();
+      return this.getLastRange();
+    }
+    /**
+     * create a new range from the list of elements
+     *
+     * @param {list} dom element list
+     * @return {WrappedRange}
+     */
+
+  }, {
+    key: "createRangeFromList",
+    value: function createRangeFromList(lst) {
+      var startRange = range.createFromNodeBefore(lists.head(lst));
+      var startPoint = startRange.getStartPoint();
+      var endRange = range.createFromNodeAfter(lists.last(lst));
+      var endPoint = endRange.getEndPoint();
+      return range.create(startPoint.node, startPoint.offset, endPoint.node, endPoint.offset);
+    }
+    /**
+     * set the last range
+     *
+     * if given rng is exist, set rng as the last range
+     * or create a new range at the end of the document
+     *
+     * @param {WrappedRange} rng
+     */
+
+  }, {
+    key: "setLastRange",
+    value: function setLastRange(rng) {
+      if (rng) {
+        this.lastRange = rng;
+      } else {
+        this.lastRange = range.create(this.editable);
+
+        if (external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(this.lastRange.sc).closest('.note-editable').length === 0) {
+          this.lastRange = range.createFromBodyElement(this.editable);
+        }
+      }
+    }
+    /**
+     * get the last range
+     *
+     * if there is a saved last range, return it
+     * or create a new range and return it
+     *
+     * @return {WrappedRange}
+     */
+
+  }, {
+    key: "getLastRange",
+    value: function getLastRange() {
+      if (!this.lastRange) {
+        this.setLastRange();
+      }
+
+      return this.lastRange;
+    }
+    /**
+     * saveRange
+     *
+     * save current range
+     *
+     * @param {Boolean} [thenCollapse=false]
+     */
+
+  }, {
+    key: "saveRange",
+    value: function saveRange(thenCollapse) {
+      if (thenCollapse) {
+        this.getLastRange().collapse().select();
+      }
+    }
+    /**
+     * restoreRange
+     *
+     * restore lately range
+     */
+
+  }, {
+    key: "restoreRange",
+    value: function restoreRange() {
+      if (this.lastRange) {
+        this.lastRange.select();
+        this.focus();
+      }
+    }
+  }, {
+    key: "saveTarget",
+    value: function saveTarget(node) {
+      this.$editable.data('target', node);
+    }
+  }, {
+    key: "clearTarget",
+    value: function clearTarget() {
+      this.$editable.removeData('target');
+    }
+  }, {
+    key: "restoreTarget",
+    value: function restoreTarget() {
+      return this.$editable.data('target');
+    }
+    /**
+     * currentStyle
+     *
+     * current style
+     * @return {Object|Boolean} unfocus
+     */
+
+  }, {
+    key: "currentStyle",
+    value: function currentStyle() {
+      var rng = range.create();
+
+      if (rng) {
+        rng = rng.normalize();
+      }
+
+      return rng ? this.style.current(rng) : this.style.fromNode(this.$editable);
+    }
+    /**
+     * style from node
+     *
+     * @param {jQuery} $node
+     * @return {Object}
+     */
+
+  }, {
+    key: "styleFromNode",
+    value: function styleFromNode($node) {
+      return this.style.fromNode($node);
+    }
+    /**
+     * undo
+     */
+
+  }, {
+    key: "undo",
+    value: function undo() {
+      this.context.triggerEvent('before.command', this.$editable.html());
+      this.history.undo();
+      this.context.triggerEvent('change', this.$editable.html(), this.$editable);
+    }
+    /*
+    * commit
+    */
+
+  }, {
+    key: "commit",
+    value: function commit() {
+      this.context.triggerEvent('before.command', this.$editable.html());
+      this.history.commit();
+      this.context.triggerEvent('change', this.$editable.html(), this.$editable);
+    }
+    /**
+     * redo
+     */
+
+  }, {
+    key: "redo",
+    value: function redo() {
+      this.context.triggerEvent('before.command', this.$editable.html());
+      this.history.redo();
+      this.context.triggerEvent('change', this.$editable.html(), this.$editable);
+    }
+    /**
+     * before command
+     */
+
+  }, {
+    key: "beforeCommand",
+    value: function beforeCommand() {
+      this.context.triggerEvent('before.command', this.$editable.html()); // Set styleWithCSS before run a command
+
+      document.execCommand('styleWithCSS', false, this.options.styleWithCSS); // keep focus on editable before command execution
+
+      this.focus();
+    }
+    /**
+     * after command
+     * @param {Boolean} isPreventTrigger
+     */
+
+  }, {
+    key: "afterCommand",
+    value: function afterCommand(isPreventTrigger) {
+      this.normalizeContent();
+      this.history.recordUndo();
+
+      if (!isPreventTrigger) {
+        this.context.triggerEvent('change', this.$editable.html(), this.$editable);
+      }
+    }
+    /**
+     * handle tab key
+     */
+
+  }, {
+    key: "tab",
+    value: function tab() {
+      var rng = this.getLastRange();
+
+      if (rng.isCollapsed() && rng.isOnCell()) {
+        this.table.tab(rng);
+      } else {
+        if (this.options.tabSize === 0) {
+          return false;
+        }
+
+        if (!this.isLimited(this.options.tabSize)) {
+          this.beforeCommand();
+          this.typing.insertTab(rng, this.options.tabSize);
+          this.afterCommand();
+        }
+      }
+    }
+    /**
+     * handle shift+tab key
+     */
+
+  }, {
+    key: "untab",
+    value: function untab() {
+      var rng = this.getLastRange();
+
+      if (rng.isCollapsed() && rng.isOnCell()) {
+        this.table.tab(rng, true);
+      } else {
+        if (this.options.tabSize === 0) {
+          return false;
+        }
+      }
+    }
+    /**
+     * run given function between beforeCommand and afterCommand
+     */
+
+  }, {
+    key: "wrapCommand",
+    value: function wrapCommand(fn) {
+      return function () {
+        this.beforeCommand();
+        fn.apply(this, arguments);
+        this.afterCommand();
+      };
+    }
+    /**
+     * insert image
+     *
+     * @param {String} src
+     * @param {String|Function} param
+     * @return {Promise}
+     */
+
+  }, {
+    key: "insertImage",
+    value: function insertImage(src, param) {
+      var _this3 = this;
+
+      return createImage(src, param).then(function ($image) {
+        _this3.beforeCommand();
+
+        if (typeof param === 'function') {
+          param($image);
+        } else {
+          if (typeof param === 'string') {
+            $image.attr('data-filename', param);
+          }
+
+          $image.css('width', Math.min(_this3.$editable.width(), $image.width()));
+        }
+
+        $image.show();
+
+        _this3.getLastRange().insertNode($image[0]);
+
+        _this3.setLastRange(range.createFromNodeAfter($image[0]).select());
+
+        _this3.afterCommand();
+      }).fail(function (e) {
+        _this3.context.triggerEvent('image.upload.error', e);
+      });
+    }
+    /**
+     * insertImages
+     * @param {File[]} files
+     */
+
+  }, {
+    key: "insertImagesAsDataURL",
+    value: function insertImagesAsDataURL(files) {
+      var _this4 = this;
+
+      external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(files, function (idx, file) {
+        var filename = file.name;
+
+        if (_this4.options.maximumImageFileSize && _this4.options.maximumImageFileSize < file.size) {
+          _this4.context.triggerEvent('image.upload.error', _this4.lang.image.maximumFileSizeError);
+        } else {
+          readFileAsDataURL(file).then(function (dataURL) {
+            return _this4.insertImage(dataURL, filename);
+          }).fail(function () {
+            _this4.context.triggerEvent('image.upload.error');
+          });
+        }
+      });
+    }
+    /**
+     * insertImagesOrCallback
+     * @param {File[]} files
+     */
+
+  }, {
+    key: "insertImagesOrCallback",
+    value: function insertImagesOrCallback(files) {
+      var callbacks = this.options.callbacks; // If onImageUpload set,
+
+      if (callbacks.onImageUpload) {
+        this.context.triggerEvent('image.upload', files); // else insert Image as dataURL
+      } else {
+        this.insertImagesAsDataURL(files);
+      }
+    }
+    /**
+     * return selected plain text
+     * @return {String} text
+     */
+
+  }, {
+    key: "getSelectedText",
+    value: function getSelectedText() {
+      var rng = this.getLastRange(); // if range on anchor, expand range with anchor
+
+      if (rng.isOnAnchor()) {
+        rng = range.createFromNode(dom.ancestor(rng.sc, dom.isAnchor));
+      }
+
+      return rng.toString();
+    }
+  }, {
+    key: "onFormatBlock",
+    value: function onFormatBlock(tagName, $target) {
+      // [workaround] for MSIE, IE need `<`
+      document.execCommand('FormatBlock', false, env.isMSIE ? '<' + tagName + '>' : tagName); // support custom class
+
+      if ($target && $target.length) {
+        // find the exact element has given tagName
+        if ($target[0].tagName.toUpperCase() !== tagName.toUpperCase()) {
+          $target = $target.find(tagName);
+        }
+
+        if ($target && $target.length) {
+          var className = $target[0].className || '';
+
+          if (className) {
+            var currentRange = this.createRange();
+            var $parent = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()([currentRange.sc, currentRange.ec]).closest(tagName);
+            $parent.addClass(className);
+          }
+        }
+      }
+    }
+  }, {
+    key: "formatPara",
+    value: function formatPara() {
+      this.formatBlock('P');
+    }
+  }, {
+    key: "fontStyling",
+    value: function fontStyling(target, value) {
+      var rng = this.getLastRange();
+
+      if (rng !== '') {
+        var spans = this.style.styleNodes(rng);
+        this.$editor.find('.note-status-output').html('');
+        external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(spans).css(target, value); // [workaround] added styled bogus span for style
+        //  - also bogus character needed for cursor position
+
+        if (rng.isCollapsed()) {
+          var firstSpan = lists.head(spans);
+
+          if (firstSpan && !dom.nodeLength(firstSpan)) {
+            firstSpan.innerHTML = dom.ZERO_WIDTH_NBSP_CHAR;
+            range.createFromNode(firstSpan.firstChild).select();
+            this.setLastRange();
+            this.$editable.data(KEY_BOGUS, firstSpan);
+          }
+        } else {
+          this.setLastRange(this.createRangeFromList(spans).select());
+        }
+      } else {
+        var noteStatusOutput = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.now();
+        this.$editor.find('.note-status-output').html('<div id="note-status-output-' + noteStatusOutput + '" class="alert alert-info">' + this.lang.output.noSelection + '</div>');
+        setTimeout(function () {
+          external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()('#note-status-output-' + noteStatusOutput).remove();
+        }, 5000);
+      }
+    }
+    /**
+     * unlink
+     *
+     * @type command
+     */
+
+  }, {
+    key: "unlink",
+    value: function unlink() {
+      var rng = this.getLastRange();
+
+      if (rng.isOnAnchor()) {
+        var anchor = dom.ancestor(rng.sc, dom.isAnchor);
+        rng = range.createFromNode(anchor);
+        rng.select();
+        this.setLastRange();
+        this.beforeCommand();
+        document.execCommand('unlink');
+        this.afterCommand();
+      }
+    }
+    /**
+     * returns link info
+     *
+     * @return {Object}
+     * @return {WrappedRange} return.range
+     * @return {String} return.text
+     * @return {Boolean} [return.isNewWindow=true]
+     * @return {String} [return.url=""]
+     */
+
+  }, {
+    key: "getLinkInfo",
+    value: function getLinkInfo() {
+      var rng = this.getLastRange().expand(dom.isAnchor); // Get the first anchor on range(for edit).
+
+      var $anchor = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(lists.head(rng.nodes(dom.isAnchor)));
+      var linkInfo = {
+        range: rng,
+        text: rng.toString(),
+        url: $anchor.length ? $anchor.attr('href') : ''
+      }; // When anchor exists,
+
+      if ($anchor.length) {
+        // Set isNewWindow by checking its target.
+        linkInfo.isNewWindow = $anchor.attr('target') === '_blank';
+      }
+
+      return linkInfo;
+    }
+  }, {
+    key: "addRow",
+    value: function addRow(position) {
+      var rng = this.getLastRange(this.$editable);
+
+      if (rng.isCollapsed() && rng.isOnCell()) {
+        this.beforeCommand();
+        this.table.addRow(rng, position);
+        this.afterCommand();
+      }
+    }
+  }, {
+    key: "addCol",
+    value: function addCol(position) {
+      var rng = this.getLastRange(this.$editable);
+
+      if (rng.isCollapsed() && rng.isOnCell()) {
+        this.beforeCommand();
+        this.table.addCol(rng, position);
+        this.afterCommand();
+      }
+    }
+  }, {
+    key: "deleteRow",
+    value: function deleteRow() {
+      var rng = this.getLastRange(this.$editable);
+
+      if (rng.isCollapsed() && rng.isOnCell()) {
+        this.beforeCommand();
+        this.table.deleteRow(rng);
+        this.afterCommand();
+      }
+    }
+  }, {
+    key: "deleteCol",
+    value: function deleteCol() {
+      var rng = this.getLastRange(this.$editable);
+
+      if (rng.isCollapsed() && rng.isOnCell()) {
+        this.beforeCommand();
+        this.table.deleteCol(rng);
+        this.afterCommand();
+      }
+    }
+  }, {
+    key: "deleteTable",
+    value: function deleteTable() {
+      var rng = this.getLastRange(this.$editable);
+
+      if (rng.isCollapsed() && rng.isOnCell()) {
+        this.beforeCommand();
+        this.table.deleteTable(rng);
+        this.afterCommand();
+      }
+    }
+    /**
+     * @param {Position} pos
+     * @param {jQuery} $target - target element
+     * @param {Boolean} [bKeepRatio] - keep ratio
+     */
+
+  }, {
+    key: "resizeTo",
+    value: function resizeTo(pos, $target, bKeepRatio) {
+      var imageSize;
+
+      if (bKeepRatio) {
+        var newRatio = pos.y / pos.x;
+        var ratio = $target.data('ratio');
+        imageSize = {
+          width: ratio > newRatio ? pos.x : pos.y / ratio,
+          height: ratio > newRatio ? pos.x * ratio : pos.y
+        };
+      } else {
+        imageSize = {
+          width: pos.x,
+          height: pos.y
+        };
+      }
+
+      $target.css(imageSize);
+    }
+    /**
+     * returns whether editable area has focus or not.
+     */
+
+  }, {
+    key: "hasFocus",
+    value: function hasFocus() {
+      return this.$editable.is(':focus');
+    }
+    /**
+     * set focus
+     */
+
+  }, {
+    key: "focus",
+    value: function focus() {
+      // [workaround] Screen will move when page is scolled in IE.
+      //  - do focus when not focused
+      if (!this.hasFocus()) {
+        this.$editable.focus();
+      }
+    }
+    /**
+     * returns whether contents is empty or not.
+     * @return {Boolean}
+     */
+
+  }, {
+    key: "isEmpty",
+    value: function isEmpty() {
+      return dom.isEmpty(this.$editable[0]) || dom.emptyPara === this.$editable.html();
+    }
+    /**
+     * Removes all contents and restores the editable instance to an _emptyPara_.
+     */
+
+  }, {
+    key: "empty",
+    value: function empty() {
+      this.context.invoke('code', dom.emptyPara);
+    }
+    /**
+     * normalize content
+     */
+
+  }, {
+    key: "normalizeContent",
+    value: function normalizeContent() {
+      this.$editable[0].normalize();
+    }
+  }]);
+
+  return Editor;
+}();
+
+
+// CONCATENATED MODULE: ./src/js/base/module/Clipboard.js
+function Clipboard_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function Clipboard_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function Clipboard_createClass(Constructor, protoProps, staticProps) { if (protoProps) Clipboard_defineProperties(Constructor.prototype, protoProps); if (staticProps) Clipboard_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+var Clipboard_Clipboard = /*#__PURE__*/function () {
+  function Clipboard(context) {
+    Clipboard_classCallCheck(this, Clipboard);
+
+    this.context = context;
+    this.$editable = context.layoutInfo.editable;
+  }
+
+  Clipboard_createClass(Clipboard, [{
+    key: "initialize",
+    value: function initialize() {
+      this.$editable.on('paste', this.pasteByEvent.bind(this));
+    }
+    /**
+     * paste by clipboard event
+     *
+     * @param {Event} event
+     */
+
+  }, {
+    key: "pasteByEvent",
+    value: function pasteByEvent(event) {
+      var _this = this;
+
+      var clipboardData = event.originalEvent.clipboardData;
+
+      if (clipboardData && clipboardData.items && clipboardData.items.length) {
+        var item = clipboardData.items.length > 1 ? clipboardData.items[1] : lists.head(clipboardData.items);
+
+        if (item.kind === 'file' && item.type.indexOf('image/') !== -1) {
+          // paste img file
+          this.context.invoke('editor.insertImagesOrCallback', [item.getAsFile()]);
+          event.preventDefault();
+        } else if (item.kind === 'string') {
+          // paste text with maxTextLength check
+          if (this.context.invoke('editor.isLimited', clipboardData.getData('Text').length)) {
+            event.preventDefault();
+          }
+        }
+      } else if (window.clipboardData) {
+        // for IE
+        var text = window.clipboardData.getData('text');
+
+        if (this.context.invoke('editor.isLimited', text.length)) {
+          event.preventDefault();
+        }
+      } // Call editor.afterCommand after proceeding default event handler
+
+
+      setTimeout(function () {
+        _this.context.invoke('editor.afterCommand');
+      }, 10);
+    }
+  }]);
+
+  return Clipboard;
+}();
+
+
+// CONCATENATED MODULE: ./src/js/base/module/Dropzone.js
+function Dropzone_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function Dropzone_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function Dropzone_createClass(Constructor, protoProps, staticProps) { if (protoProps) Dropzone_defineProperties(Constructor.prototype, protoProps); if (staticProps) Dropzone_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+var Dropzone_Dropzone = /*#__PURE__*/function () {
+  function Dropzone(context) {
+    Dropzone_classCallCheck(this, Dropzone);
+
+    this.context = context;
+    this.$eventListener = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(document);
+    this.$editor = context.layoutInfo.editor;
+    this.$editable = context.layoutInfo.editable;
+    this.options = context.options;
+    this.lang = this.options.langInfo;
+    this.documentEventHandlers = {};
+    this.$dropzone = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(['<div class="note-dropzone">', '<div class="note-dropzone-message"></div>', '</div>'].join('')).prependTo(this.$editor);
+  }
+  /**
+   * attach Drag and Drop Events
+   */
+
+
+  Dropzone_createClass(Dropzone, [{
+    key: "initialize",
+    value: function initialize() {
+      if (this.options.disableDragAndDrop) {
+        // prevent default drop event
+        this.documentEventHandlers.onDrop = function (e) {
+          e.preventDefault();
+        }; // do not consider outside of dropzone
+
+
+        this.$eventListener = this.$dropzone;
+        this.$eventListener.on('drop', this.documentEventHandlers.onDrop);
+      } else {
+        this.attachDragAndDropEvent();
+      }
+    }
+    /**
+     * attach Drag and Drop Events
+     */
+
+  }, {
+    key: "attachDragAndDropEvent",
+    value: function attachDragAndDropEvent() {
+      var _this = this;
+
+      var collection = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()();
+      var $dropzoneMessage = this.$dropzone.find('.note-dropzone-message');
+
+      this.documentEventHandlers.onDragenter = function (e) {
+        var isCodeview = _this.context.invoke('codeview.isActivated');
+
+        var hasEditorSize = _this.$editor.width() > 0 && _this.$editor.height() > 0;
+
+        if (!isCodeview && !collection.length && hasEditorSize) {
+          _this.$editor.addClass('dragover');
+
+          _this.$dropzone.width(_this.$editor.width());
+
+          _this.$dropzone.height(_this.$editor.height());
+
+          $dropzoneMessage.text(_this.lang.image.dragImageHere);
+        }
+
+        collection = collection.add(e.target);
+      };
+
+      this.documentEventHandlers.onDragleave = function (e) {
+        collection = collection.not(e.target); // If nodeName is BODY, then just make it over (fix for IE)
+
+        if (!collection.length || e.target.nodeName === 'BODY') {
+          collection = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()();
+
+          _this.$editor.removeClass('dragover');
+        }
+      };
+
+      this.documentEventHandlers.onDrop = function () {
+        collection = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()();
+
+        _this.$editor.removeClass('dragover');
+      }; // show dropzone on dragenter when dragging a object to document
+      // -but only if the editor is visible, i.e. has a positive width and height
+
+
+      this.$eventListener.on('dragenter', this.documentEventHandlers.onDragenter).on('

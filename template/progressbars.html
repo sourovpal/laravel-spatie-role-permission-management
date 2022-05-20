@@ -1,0 +1,1583 @@
+  NBSP_CHAR: NBSP_CHAR,
+
+  /** @property {String} ZERO_WIDTH_NBSP_CHAR */
+  ZERO_WIDTH_NBSP_CHAR: ZERO_WIDTH_NBSP_CHAR,
+
+  /** @property {String} blank */
+  blank: blankHTML,
+
+  /** @property {String} emptyPara */
+  emptyPara: "<p>".concat(blankHTML, "</p>"),
+  makePredByNodeName: makePredByNodeName,
+  isEditable: isEditable,
+  isControlSizing: isControlSizing,
+  isText: isText,
+  isElement: isElement,
+  isVoid: isVoid,
+  isPara: isPara,
+  isPurePara: isPurePara,
+  isHeading: isHeading,
+  isInline: dom_isInline,
+  isBlock: func.not(dom_isInline),
+  isBodyInline: isBodyInline,
+  isBody: isBody,
+  isParaInline: isParaInline,
+  isPre: isPre,
+  isList: isList,
+  isTable: isTable,
+  isData: isData,
+  isCell: dom_isCell,
+  isBlockquote: isBlockquote,
+  isBodyContainer: isBodyContainer,
+  isAnchor: isAnchor,
+  isDiv: makePredByNodeName('DIV'),
+  isLi: isLi,
+  isBR: makePredByNodeName('BR'),
+  isSpan: makePredByNodeName('SPAN'),
+  isB: makePredByNodeName('B'),
+  isU: makePredByNodeName('U'),
+  isS: makePredByNodeName('S'),
+  isI: makePredByNodeName('I'),
+  isImg: makePredByNodeName('IMG'),
+  isTextarea: isTextarea,
+  deepestChildIsEmpty: deepestChildIsEmpty,
+  isEmpty: dom_isEmpty,
+  isEmptyAnchor: func.and(isAnchor, dom_isEmpty),
+  isClosestSibling: isClosestSibling,
+  withClosestSiblings: withClosestSiblings,
+  nodeLength: nodeLength,
+  isLeftEdgePoint: isLeftEdgePoint,
+  isRightEdgePoint: isRightEdgePoint,
+  isEdgePoint: isEdgePoint,
+  isLeftEdgeOf: dom_isLeftEdgeOf,
+  isRightEdgeOf: isRightEdgeOf,
+  isLeftEdgePointOf: isLeftEdgePointOf,
+  isRightEdgePointOf: isRightEdgePointOf,
+  prevPoint: dom_prevPoint,
+  nextPoint: dom_nextPoint,
+  nextPointWithEmptyNode: nextPointWithEmptyNode,
+  isSamePoint: isSamePoint,
+  isVisiblePoint: isVisiblePoint,
+  prevPointUntil: prevPointUntil,
+  nextPointUntil: nextPointUntil,
+  isCharPoint: isCharPoint,
+  isSpacePoint: isSpacePoint,
+  walkPoint: walkPoint,
+  ancestor: dom_ancestor,
+  singleChildAncestor: singleChildAncestor,
+  listAncestor: listAncestor,
+  lastAncestor: lastAncestor,
+  listNext: listNext,
+  listPrev: listPrev,
+  listDescendant: listDescendant,
+  commonAncestor: dom_commonAncestor,
+  wrap: wrap,
+  insertAfter: insertAfter,
+  appendChildNodes: appendChildNodes,
+  position: dom_position,
+  hasChildren: hasChildren,
+  makeOffsetPath: makeOffsetPath,
+  fromOffsetPath: fromOffsetPath,
+  splitTree: splitTree,
+  splitPoint: splitPoint,
+  create: dom_create,
+  createText: createText,
+  remove: remove,
+  removeWhile: removeWhile,
+  replace: dom_replace,
+  html: dom_html,
+  value: dom_value,
+  posFromPlaceholder: posFromPlaceholder,
+  attachEvents: attachEvents,
+  detachEvents: detachEvents,
+  isCustomStyleTag: isCustomStyleTag
+});
+// CONCATENATED MODULE: ./src/js/base/Context.js
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+
+
+
+var Context_Context = /*#__PURE__*/function () {
+  /**
+   * @param {jQuery} $note
+   * @param {Object} options
+   */
+  function Context($note, options) {
+    _classCallCheck(this, Context);
+
+    this.$note = $note;
+    this.memos = {};
+    this.modules = {};
+    this.layoutInfo = {};
+    this.options = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.extend(true, {}, options); // init ui with options
+
+    external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.summernote.ui = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.summernote.ui_template(this.options);
+    this.ui = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.summernote.ui;
+    this.initialize();
+  }
+  /**
+   * create layout and initialize modules and other resources
+   */
+
+
+  _createClass(Context, [{
+    key: "initialize",
+    value: function initialize() {
+      this.layoutInfo = this.ui.createLayout(this.$note);
+
+      this._initialize();
+
+      this.$note.hide();
+      return this;
+    }
+    /**
+     * destroy modules and other resources and remove layout
+     */
+
+  }, {
+    key: "destroy",
+    value: function destroy() {
+      this._destroy();
+
+      this.$note.removeData('summernote');
+      this.ui.removeLayout(this.$note, this.layoutInfo);
+    }
+    /**
+     * destory modules and other resources and initialize it again
+     */
+
+  }, {
+    key: "reset",
+    value: function reset() {
+      var disabled = this.isDisabled();
+      this.code(dom.emptyPara);
+
+      this._destroy();
+
+      this._initialize();
+
+      if (disabled) {
+        this.disable();
+      }
+    }
+  }, {
+    key: "_initialize",
+    value: function _initialize() {
+      var _this = this;
+
+      // set own id
+      this.options.id = func.uniqueId(external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.now()); // set default container for tooltips, popovers, and dialogs
+
+      this.options.container = this.options.container || this.layoutInfo.editor; // add optional buttons
+
+      var buttons = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.extend({}, this.options.buttons);
+      Object.keys(buttons).forEach(function (key) {
+        _this.memo('button.' + key, buttons[key]);
+      });
+      var modules = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.extend({}, this.options.modules, external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.summernote.plugins || {}); // add and initialize modules
+
+      Object.keys(modules).forEach(function (key) {
+        _this.module(key, modules[key], true);
+      });
+      Object.keys(this.modules).forEach(function (key) {
+        _this.initializeModule(key);
+      });
+    }
+  }, {
+    key: "_destroy",
+    value: function _destroy() {
+      var _this2 = this;
+
+      // destroy modules with reversed order
+      Object.keys(this.modules).reverse().forEach(function (key) {
+        _this2.removeModule(key);
+      });
+      Object.keys(this.memos).forEach(function (key) {
+        _this2.removeMemo(key);
+      }); // trigger custom onDestroy callback
+
+      this.triggerEvent('destroy', this);
+    }
+  }, {
+    key: "code",
+    value: function code(html) {
+      var isActivated = this.invoke('codeview.isActivated');
+
+      if (html === undefined) {
+        this.invoke('codeview.sync');
+        return isActivated ? this.layoutInfo.codable.val() : this.layoutInfo.editable.html();
+      } else {
+        if (isActivated) {
+          this.invoke('codeview.sync', html);
+        } else {
+          this.layoutInfo.editable.html(html);
+        }
+
+        this.$note.val(html);
+        this.triggerEvent('change', html, this.layoutInfo.editable);
+      }
+    }
+  }, {
+    key: "isDisabled",
+    value: function isDisabled() {
+      return this.layoutInfo.editable.attr('contenteditable') === 'false';
+    }
+  }, {
+    key: "enable",
+    value: function enable() {
+      this.layoutInfo.editable.attr('contenteditable', true);
+      this.invoke('toolbar.activate', true);
+      this.triggerEvent('disable', false);
+      this.options.editing = true;
+    }
+  }, {
+    key: "disable",
+    value: function disable() {
+      // close codeview if codeview is opend
+      if (this.invoke('codeview.isActivated')) {
+        this.invoke('codeview.deactivate');
+      }
+
+      this.layoutInfo.editable.attr('contenteditable', false);
+      this.options.editing = false;
+      this.invoke('toolbar.deactivate', true);
+      this.triggerEvent('disable', true);
+    }
+  }, {
+    key: "triggerEvent",
+    value: function triggerEvent() {
+      var namespace = lists.head(arguments);
+      var args = lists.tail(lists.from(arguments));
+      var callback = this.options.callbacks[func.namespaceToCamel(namespace, 'on')];
+
+      if (callback) {
+        callback.apply(this.$note[0], args);
+      }
+
+      this.$note.trigger('summernote.' + namespace, args);
+    }
+  }, {
+    key: "initializeModule",
+    value: function initializeModule(key) {
+      var module = this.modules[key];
+      module.shouldInitialize = module.shouldInitialize || func.ok;
+
+      if (!module.shouldInitialize()) {
+        return;
+      } // initialize module
+
+
+      if (module.initialize) {
+        module.initialize();
+      } // attach events
+
+
+      if (module.events) {
+        dom.attachEvents(this.$note, module.events);
+      }
+    }
+  }, {
+    key: "module",
+    value: function module(key, ModuleClass, withoutIntialize) {
+      if (arguments.length === 1) {
+        return this.modules[key];
+      }
+
+      this.modules[key] = new ModuleClass(this);
+
+      if (!withoutIntialize) {
+        this.initializeModule(key);
+      }
+    }
+  }, {
+    key: "removeModule",
+    value: function removeModule(key) {
+      var module = this.modules[key];
+
+      if (module.shouldInitialize()) {
+        if (module.events) {
+          dom.detachEvents(this.$note, module.events);
+        }
+
+        if (module.destroy) {
+          module.destroy();
+        }
+      }
+
+      delete this.modules[key];
+    }
+  }, {
+    key: "memo",
+    value: function memo(key, obj) {
+      if (arguments.length === 1) {
+        return this.memos[key];
+      }
+
+      this.memos[key] = obj;
+    }
+  }, {
+    key: "removeMemo",
+    value: function removeMemo(key) {
+      if (this.memos[key] && this.memos[key].destroy) {
+        this.memos[key].destroy();
+      }
+
+      delete this.memos[key];
+    }
+    /**
+     * Some buttons need to change their visual style immediately once they get pressed
+     */
+
+  }, {
+    key: "createInvokeHandlerAndUpdateState",
+    value: function createInvokeHandlerAndUpdateState(namespace, value) {
+      var _this3 = this;
+
+      return function (event) {
+        _this3.createInvokeHandler(namespace, value)(event);
+
+        _this3.invoke('buttons.updateCurrentStyle');
+      };
+    }
+  }, {
+    key: "createInvokeHandler",
+    value: function createInvokeHandler(namespace, value) {
+      var _this4 = this;
+
+      return function (event) {
+        event.preventDefault();
+        var $target = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(event.target);
+
+        _this4.invoke(namespace, value || $target.closest('[data-value]').data('value'), $target);
+      };
+    }
+  }, {
+    key: "invoke",
+    value: function invoke() {
+      var namespace = lists.head(arguments);
+      var args = lists.tail(lists.from(arguments));
+      var splits = namespace.split('.');
+      var hasSeparator = splits.length > 1;
+      var moduleName = hasSeparator && lists.head(splits);
+      var methodName = hasSeparator ? lists.last(splits) : lists.head(splits);
+      var module = this.modules[moduleName || 'editor'];
+
+      if (!moduleName && this[methodName]) {
+        return this[methodName].apply(this, args);
+      } else if (module && module[methodName] && module.shouldInitialize()) {
+        return module[methodName].apply(module, args);
+      }
+    }
+  }]);
+
+  return Context;
+}();
+
+
+// CONCATENATED MODULE: ./src/js/summernote.js
+
+
+
+
+external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.fn.extend({
+  /**
+   * Summernote API
+   *
+   * @param {Object|String}
+   * @return {this}
+   */
+  summernote: function summernote() {
+    var type = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.type(lists.head(arguments));
+    var isExternalAPICalled = type === 'string';
+    var hasInitOptions = type === 'object';
+    var options = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.extend({}, external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.summernote.options, hasInitOptions ? lists.head(arguments) : {}); // Update options
+
+    options.langInfo = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.extend(true, {}, external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.summernote.lang['en-US'], external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.summernote.lang[options.lang]);
+    options.icons = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.extend(true, {}, external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.summernote.options.icons, options.icons);
+    options.tooltip = options.tooltip === 'auto' ? !env.isSupportTouch : options.tooltip;
+    this.each(function (idx, note) {
+      var $note = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(note);
+
+      if (!$note.data('summernote')) {
+        var context = new Context_Context($note, options);
+        $note.data('summernote', context);
+        $note.data('summernote').triggerEvent('init', context.layoutInfo);
+      }
+    });
+    var $note = this.first();
+
+    if ($note.length) {
+      var context = $note.data('summernote');
+
+      if (isExternalAPICalled) {
+        return context.invoke.apply(context, lists.from(arguments));
+      } else if (options.focus) {
+        context.invoke('editor.focus');
+      }
+    }
+
+    return this;
+  }
+});
+// CONCATENATED MODULE: ./src/js/base/core/range.js
+function range_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function range_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function range_createClass(Constructor, protoProps, staticProps) { if (protoProps) range_defineProperties(Constructor.prototype, protoProps); if (staticProps) range_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+
+
+
+/**
+ * return boundaryPoint from TextRange, inspired by Andy Na's HuskyRange.js
+ *
+ * @param {TextRange} textRange
+ * @param {Boolean} isStart
+ * @return {BoundaryPoint}
+ *
+ * @see http://msdn.microsoft.com/en-us/library/ie/ms535872(v=vs.85).aspx
+ */
+
+function textRangeToPoint(textRange, isStart) {
+  var container = textRange.parentElement();
+  var offset;
+  var tester = document.body.createTextRange();
+  var prevContainer;
+  var childNodes = lists.from(container.childNodes);
+
+  for (offset = 0; offset < childNodes.length; offset++) {
+    if (dom.isText(childNodes[offset])) {
+      continue;
+    }
+
+    tester.moveToElementText(childNodes[offset]);
+
+    if (tester.compareEndPoints('StartToStart', textRange) >= 0) {
+      break;
+    }
+
+    prevContainer = childNodes[offset];
+  }
+
+  if (offset !== 0 && dom.isText(childNodes[offset - 1])) {
+    var textRangeStart = document.body.createTextRange();
+    var curTextNode = null;
+    textRangeStart.moveToElementText(prevContainer || container);
+    textRangeStart.collapse(!prevContainer);
+    curTextNode = prevContainer ? prevContainer.nextSibling : container.firstChild;
+    var pointTester = textRange.duplicate();
+    pointTester.setEndPoint('StartToStart', textRangeStart);
+    var textCount = pointTester.text.replace(/[\r\n]/g, '').length;
+
+    while (textCount > curTextNode.nodeValue.length && curTextNode.nextSibling) {
+      textCount -= curTextNode.nodeValue.length;
+      curTextNode = curTextNode.nextSibling;
+    } // [workaround] enforce IE to re-reference curTextNode, hack
+
+
+    var dummy = curTextNode.nodeValue; // eslint-disable-line
+
+    if (isStart && curTextNode.nextSibling && dom.isText(curTextNode.nextSibling) && textCount === curTextNode.nodeValue.length) {
+      textCount -= curTextNode.nodeValue.length;
+      curTextNode = curTextNode.nextSibling;
+    }
+
+    container = curTextNode;
+    offset = textCount;
+  }
+
+  return {
+    cont: container,
+    offset: offset
+  };
+}
+/**
+ * return TextRange from boundary point (inspired by google closure-library)
+ * @param {BoundaryPoint} point
+ * @return {TextRange}
+ */
+
+
+function pointToTextRange(point) {
+  var textRangeInfo = function textRangeInfo(container, offset) {
+    var node, isCollapseToStart;
+
+    if (dom.isText(container)) {
+      var prevTextNodes = dom.listPrev(container, func.not(dom.isText));
+      var prevContainer = lists.last(prevTextNodes).previousSibling;
+      node = prevContainer || container.parentNode;
+      offset += lists.sum(lists.tail(prevTextNodes), dom.nodeLength);
+      isCollapseToStart = !prevContainer;
+    } else {
+      node = container.childNodes[offset] || container;
+
+      if (dom.isText(node)) {
+        return textRangeInfo(node, 0);
+      }
+
+      offset = 0;
+      isCollapseToStart = false;
+    }
+
+    return {
+      node: node,
+      collapseToStart: isCollapseToStart,
+      offset: offset
+    };
+  };
+
+  var textRange = document.body.createTextRange();
+  var info = textRangeInfo(point.node, point.offset);
+  textRange.moveToElementText(info.node);
+  textRange.collapse(info.collapseToStart);
+  textRange.moveStart('character', info.offset);
+  return textRange;
+}
+/**
+   * Wrapped Range
+   *
+   * @constructor
+   * @param {Node} sc - start container
+   * @param {Number} so - start offset
+   * @param {Node} ec - end container
+   * @param {Number} eo - end offset
+   */
+
+
+var range_WrappedRange = /*#__PURE__*/function () {
+  function WrappedRange(sc, so, ec, eo) {
+    range_classCallCheck(this, WrappedRange);
+
+    this.sc = sc;
+    this.so = so;
+    this.ec = ec;
+    this.eo = eo; // isOnEditable: judge whether range is on editable or not
+
+    this.isOnEditable = this.makeIsOn(dom.isEditable); // isOnList: judge whether range is on list node or not
+
+    this.isOnList = this.makeIsOn(dom.isList); // isOnAnchor: judge whether range is on anchor node or not
+
+    this.isOnAnchor = this.makeIsOn(dom.isAnchor); // isOnCell: judge whether range is on cell node or not
+
+    this.isOnCell = this.makeIsOn(dom.isCell); // isOnData: judge whether range is on data node or not
+
+    this.isOnData = this.makeIsOn(dom.isData);
+  } // nativeRange: get nativeRange from sc, so, ec, eo
+
+
+  range_createClass(WrappedRange, [{
+    key: "nativeRange",
+    value: function nativeRange() {
+      if (env.isW3CRangeSupport) {
+        var w3cRange = document.createRange();
+        w3cRange.setStart(this.sc, this.so);
+        w3cRange.setEnd(this.ec, this.eo);
+        return w3cRange;
+      } else {
+        var textRange = pointToTextRange({
+          node: this.sc,
+          offset: this.so
+        });
+        textRange.setEndPoint('EndToEnd', pointToTextRange({
+          node: this.ec,
+          offset: this.eo
+        }));
+        return textRange;
+      }
+    }
+  }, {
+    key: "getPoints",
+    value: function getPoints() {
+      return {
+        sc: this.sc,
+        so: this.so,
+        ec: this.ec,
+        eo: this.eo
+      };
+    }
+  }, {
+    key: "getStartPoint",
+    value: function getStartPoint() {
+      return {
+        node: this.sc,
+        offset: this.so
+      };
+    }
+  }, {
+    key: "getEndPoint",
+    value: function getEndPoint() {
+      return {
+        node: this.ec,
+        offset: this.eo
+      };
+    }
+    /**
+     * select update visible range
+     */
+
+  }, {
+    key: "select",
+    value: function select() {
+      var nativeRng = this.nativeRange();
+
+      if (env.isW3CRangeSupport) {
+        var selection = document.getSelection();
+
+        if (selection.rangeCount > 0) {
+          selection.removeAllRanges();
+        }
+
+        selection.addRange(nativeRng);
+      } else {
+        nativeRng.select();
+      }
+
+      return this;
+    }
+    /**
+     * Moves the scrollbar to start container(sc) of current range
+     *
+     * @return {WrappedRange}
+     */
+
+  }, {
+    key: "scrollIntoView",
+    value: function scrollIntoView(container) {
+      var height = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()(container).height();
+
+      if (container.scrollTop + height < this.sc.offsetTop) {
+        container.scrollTop += Math.abs(container.scrollTop + height - this.sc.offsetTop);
+      }
+
+      return this;
+    }
+    /**
+     * @return {WrappedRange}
+     */
+
+  }, {
+    key: "normalize",
+    value: function normalize() {
+      /**
+       * @param {BoundaryPoint} point
+       * @param {Boolean} isLeftToRight - true: prefer to choose right node
+       *                                - false: prefer to choose left node
+       * @return {BoundaryPoint}
+       */
+      var getVisiblePoint = function getVisiblePoint(point, isLeftToRight) {
+        if (!point) {
+          return point;
+        } // Just use the given point [XXX:Adhoc]
+        //  - case 01. if the point is on the middle of the node
+        //  - case 02. if the point is on the right edge and prefer to choose left node
+        //  - case 03. if the point is on the left edge and prefer to choose right node
+        //  - case 04. if the point is on the right edge and prefer to choose right node but the node is void
+        //  - case 05. if the point is on the left edge and prefer to choose left node but the node is void
+        //  - case 06. if the point is on the block node and there is no children
+
+
+        if (dom.isVisiblePoint(point)) {
+          if (!dom.isEdgePoint(point) || dom.isRightEdgePoint(point) && !isLeftToRight || dom.isLeftEdgePoint(point) && isLeftToRight || dom.isRightEdgePoint(point) && isLeftToRight && dom.isVoid(point.node.nextSibling) || dom.isLeftEdgePoint(point) && !isLeftToRight && dom.isVoid(point.node.previousSibling) || dom.isBlock(point.node) && dom.isEmpty(point.node)) {
+            return point;
+          }
+        } // point on block's edge
+
+
+        var block = dom.ancestor(point.node, dom.isBlock);
+        var hasRightNode = false;
+
+        if (!hasRightNode) {
+          var prevPoint = dom.prevPoint(point) || {
+            node: null
+          };
+          hasRightNode = (dom.isLeftEdgePointOf(point, block) || dom.isVoid(prevPoint.node)) && !isLeftToRight;
+        }
+
+        var hasLeftNode = false;
+
+        if (!hasLeftNode) {
+          var _nextPoint = dom.nextPoint(point) || {
+            node: null
+          };
+
+          hasLeftNode = (dom.isRightEdgePointOf(point, block) || dom.isVoid(_nextPoint.node)) && isLeftToRight;
+        }
+
+        if (hasRightNode || hasLeftNode) {
+          // returns point already on visible point
+          if (dom.isVisiblePoint(point)) {
+            return point;
+          } // reverse direction
+
+
+          isLeftToRight = !isLeftToRight;
+        }
+
+        var nextPoint = isLeftToRight ? dom.nextPointUntil(dom.nextPoint(point), dom.isVisiblePoint) : dom.prevPointUntil(dom.prevPoint(point), dom.isVisiblePoint);
+        return nextPoint || point;
+      };
+
+      var endPoint = getVisiblePoint(this.getEndPoint(), false);
+      var startPoint = this.isCollapsed() ? endPoint : getVisiblePoint(this.getStartPoint(), true);
+      return new WrappedRange(startPoint.node, startPoint.offset, endPoint.node, endPoint.offset);
+    }
+    /**
+     * returns matched nodes on range
+     *
+     * @param {Function} [pred] - predicate function
+     * @param {Object} [options]
+     * @param {Boolean} [options.includeAncestor]
+     * @param {Boolean} [options.fullyContains]
+     * @return {Node[]}
+     */
+
+  }, {
+    key: "nodes",
+    value: function nodes(pred, options) {
+      pred = pred || func.ok;
+      var includeAncestor = options && options.includeAncestor;
+      var fullyContains = options && options.fullyContains; // TODO compare points and sort
+
+      var startPoint = this.getStartPoint();
+      var endPoint = this.getEndPoint();
+      var nodes = [];
+      var leftEdgeNodes = [];
+      dom.walkPoint(startPoint, endPoint, function (point) {
+        if (dom.isEditable(point.node)) {
+          return;
+        }
+
+        var node;
+
+        if (fullyContains) {
+          if (dom.isLeftEdgePoint(point)) {
+            leftEdgeNodes.push(point.node);
+          }
+
+          if (dom.isRightEdgePoint(point) && lists.contains(leftEdgeNodes, point.node)) {
+            node = point.node;
+          }
+        } else if (includeAncestor) {
+          node = dom.ancestor(point.node, pred);
+        } else {
+          node = point.node;
+        }
+
+        if (node && pred(node)) {
+          nodes.push(node);
+        }
+      }, true);
+      return lists.unique(nodes);
+    }
+    /**
+     * returns commonAncestor of range
+     * @return {Element} - commonAncestor
+     */
+
+  }, {
+    key: "commonAncestor",
+    value: function commonAncestor() {
+      return dom.commonAncestor(this.sc, this.ec);
+    }
+    /**
+     * returns expanded range by pred
+     *
+     * @param {Function} pred - predicate function
+     * @return {WrappedRange}
+     */
+
+  }, {
+    key: "expand",
+    value: function expand(pred) {
+      var startAncestor = dom.ancestor(this.sc, pred);
+      var endAncestor = dom.ancestor(this.ec, pred);
+
+      if (!startAncestor && !endAncestor) {
+        return new WrappedRange(this.sc, this.so, this.ec, this.eo);
+      }
+
+      var boundaryPoints = this.getPoints();
+
+      if (startAncestor) {
+        boundaryPoints.sc = startAncestor;
+        boundaryPoints.so = 0;
+      }
+
+      if (endAncestor) {
+        boundaryPoints.ec = endAncestor;
+        boundaryPoints.eo = dom.nodeLength(endAncestor);
+      }
+
+      return new WrappedRange(boundaryPoints.sc, boundaryPoints.so, boundaryPoints.ec, boundaryPoints.eo);
+    }
+    /**
+     * @param {Boolean} isCollapseToStart
+     * @return {WrappedRange}
+     */
+
+  }, {
+    key: "collapse",
+    value: function collapse(isCollapseToStart) {
+      if (isCollapseToStart) {
+        return new WrappedRange(this.sc, this.so, this.sc, this.so);
+      } else {
+        return new WrappedRange(this.ec, this.eo, this.ec, this.eo);
+      }
+    }
+    /**
+     * splitText on range
+     */
+
+  }, {
+    key: "splitText",
+    value: function splitText() {
+      var isSameContainer = this.sc === this.ec;
+      var boundaryPoints = this.getPoints();
+
+      if (dom.isText(this.ec) && !dom.isEdgePoint(this.getEndPoint())) {
+        this.ec.splitText(this.eo);
+      }
+
+      if (dom.isText(this.sc) && !dom.isEdgePoint(this.getStartPoint())) {
+        boundaryPoints.sc = this.sc.splitText(this.so);
+        boundaryPoints.so = 0;
+
+        if (isSameContainer) {
+          boundaryPoints.ec = boundaryPoints.sc;
+          boundaryPoints.eo = this.eo - this.so;
+        }
+      }
+
+      return new WrappedRange(boundaryPoints.sc, boundaryPoints.so, boundaryPoints.ec, boundaryPoints.eo);
+    }
+    /**
+     * delete contents on range
+     * @return {WrappedRange}
+     */
+
+  }, {
+    key: "deleteContents",
+    value: function deleteContents() {
+      if (this.isCollapsed()) {
+        return this;
+      }
+
+      var rng = this.splitText();
+      var nodes = rng.nodes(null, {
+        fullyContains: true
+      }); // find new cursor point
+
+      var point = dom.prevPointUntil(rng.getStartPoint(), function (point) {
+        return !lists.contains(nodes, point.node);
+      });
+      var emptyParents = [];
+      external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(nodes, function (idx, node) {
+        // find empty parents
+        var parent = node.parentNode;
+
+        if (point.node !== parent && dom.nodeLength(parent) === 1) {
+          emptyParents.push(parent);
+        }
+
+        dom.remove(node, false);
+      }); // remove empty parents
+
+      external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.each(emptyParents, function (idx, node) {
+        dom.remove(node, false);
+      });
+      return new WrappedRange(point.node, point.offset, point.node, point.offset).normalize();
+    }
+    /**
+     * makeIsOn: return isOn(pred) function
+     */
+
+  }, {
+    key: "makeIsOn",
+    value: function makeIsOn(pred) {
+      return function () {
+        var ancestor = dom.ancestor(this.sc, pred);
+        return !!ancestor && ancestor === dom.ancestor(this.ec, pred);
+      };
+    }
+    /**
+     * @param {Function} pred
+     * @return {Boolean}
+     */
+
+  }, {
+    key: "isLeftEdgeOf",
+    value: function isLeftEdgeOf(pred) {
+      if (!dom.isLeftEdgePoint(this.getStartPoint())) {
+        return false;
+      }
+
+      var node = dom.ancestor(this.sc, pred);
+      return node && dom.isLeftEdgeOf(this.sc, node);
+    }
+    /**
+     * returns whether range was collapsed or not
+     */
+
+  }, {
+    key: "isCollapsed",
+    value: function isCollapsed() {
+      return this.sc === this.ec && this.so === this.eo;
+    }
+    /**
+     * wrap inline nodes which children of body with paragraph
+     *
+     * @return {WrappedRange}
+     */
+
+  }, {
+    key: "wrapBodyInlineWithPara",
+    value: function wrapBodyInlineWithPara() {
+      if (dom.isBodyContainer(this.sc) && dom.isEmpty(this.sc)) {
+        this.sc.innerHTML = dom.emptyPara;
+        return new WrappedRange(this.sc.firstChild, 0, this.sc.firstChild, 0);
+      }
+      /**
+       * [workaround] firefox often create range on not visible point. so normalize here.
+       *  - firefox: |<p>text</p>|
+       *  - chrome: <p>|text|</p>
+       */
+
+
+      var rng = this.normalize();
+
+      if (dom.isParaInline(this.sc) || dom.isPara(this.sc)) {
+        return rng;
+      } // find inline top ancestor
+
+
+      var topAncestor;
+
+      if (dom.isInline(rng.sc)) {
+        var ancestors = dom.listAncestor(rng.sc, func.not(dom.isInline));
+        topAncestor = lists.last(ancestors);
+
+        if (!dom.isInline(topAncestor)) {
+          topAncestor = ancestors[ancestors.length - 2] || rng.sc.childNodes[rng.so];
+        }
+      } else {
+        topAncestor = rng.sc.childNodes[rng.so > 0 ? rng.so - 1 : 0];
+      }
+
+      if (topAncestor) {
+        // siblings not in paragraph
+        var inlineSiblings = dom.listPrev(topAncestor, dom.isParaInline).reverse();
+        inlineSiblings = inlineSiblings.concat(dom.listNext(topAncestor.nextSibling, dom.isParaInline)); // wrap with paragraph
+
+        if (inlineSiblings.length) {
+          var para = dom.wrap(lists.head(inlineSiblings), 'p');
+          dom.appendChildNodes(para, lists.tail(inlineSiblings));
+        }
+      }
+
+      return this.normalize();
+    }
+    /**
+     * insert node at current cursor
+     *
+     * @param {Node} node
+     * @return {Node}
+     */
+
+  }, {
+    key: "insertNode",
+    value: function insertNode(node) {
+      var rng = this;
+
+      if (dom.isText(node) || dom.isInline(node)) {
+        rng = this.wrapBodyInlineWithPara().deleteContents();
+      }
+
+      var info = dom.splitPoint(rng.getStartPoint(), dom.isInline(node));
+
+      if (info.rightNode) {
+        info.rightNode.parentNode.insertBefore(node, info.rightNode);
+
+        if (dom.isEmpty(info.rightNode) && dom.isPara(node)) {
+          info.rightNode.parentNode.removeChild(info.rightNode);
+        }
+      } else {
+        info.container.appendChild(node);
+      }
+
+      return node;
+    }
+    /**
+     * insert html at current cursor
+     */
+
+  }, {
+    key: "pasteHTML",
+    value: function pasteHTML(markup) {
+      markup = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.trim(markup);
+      var contentsContainer = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()('<div></div>').html(markup)[0];
+      var childNodes = lists.from(contentsContainer.childNodes); // const rng = this.wrapBodyInlineWithPara().deleteContents();
+
+      var rng = this;
+      var reversed = false;
+
+      if (rng.so >= 0) {
+        childNodes = childNodes.reverse();
+        reversed = true;
+      }
+
+      childNodes = childNodes.map(function (childNode) {
+        return rng.insertNode(childNode);
+      });
+
+      if (reversed) {
+        childNodes = childNodes.reverse();
+      }
+
+      return childNodes;
+    }
+    /**
+     * returns text in range
+     *
+     * @return {String}
+     */
+
+  }, {
+    key: "toString",
+    value: function toString() {
+      var nativeRng = this.nativeRange();
+      return env.isW3CRangeSupport ? nativeRng.toString() : nativeRng.text;
+    }
+    /**
+     * returns range for word before cursor
+     *
+     * @param {Boolean} [findAfter] - find after cursor, default: false
+     * @return {WrappedRange}
+     */
+
+  }, {
+    key: "getWordRange",
+    value: function getWordRange(findAfter) {
+      var endPoint = this.getEndPoint();
+
+      if (!dom.isCharPoint(endPoint)) {
+        return this;
+      }
+
+      var startPoint = dom.prevPointUntil(endPoint, function (point) {
+        return !dom.isCharPoint(point);
+      });
+
+      if (findAfter) {
+        endPoint = dom.nextPointUntil(endPoint, function (point) {
+          return !dom.isCharPoint(point);
+        });
+      }
+
+      return new WrappedRange(startPoint.node, startPoint.offset, endPoint.node, endPoint.offset);
+    }
+    /**
+     * returns range for words before cursor
+     *
+     * @param {Boolean} [findAfter] - find after cursor, default: false
+     * @return {WrappedRange}
+     */
+
+  }, {
+    key: "getWordsRange",
+    value: function getWordsRange(findAfter) {
+      var endPoint = this.getEndPoint();
+
+      var isNotTextPoint = function isNotTextPoint(point) {
+        return !dom.isCharPoint(point) && !dom.isSpacePoint(point);
+      };
+
+      if (isNotTextPoint(endPoint)) {
+        return this;
+      }
+
+      var startPoint = dom.prevPointUntil(endPoint, isNotTextPoint);
+
+      if (findAfter) {
+        endPoint = dom.nextPointUntil(endPoint, isNotTextPoint);
+      }
+
+      return new WrappedRange(startPoint.node, startPoint.offset, endPoint.node, endPoint.offset);
+    }
+    /**
+     * returns range for words before cursor that match with a Regex
+     *
+     * example:
+     *  range: 'hi @Peter Pan'
+     *  regex: '/@[a-z ]+/i'
+     *  return range: '@Peter Pan'
+     *
+     * @param {RegExp} [regex]
+     * @return {WrappedRange|null}
+     */
+
+  }, {
+    key: "getWordsMatchRange",
+    value: function getWordsMatchRange(regex) {
+      var endPoint = this.getEndPoint();
+      var startPoint = dom.prevPointUntil(endPoint, function (point) {
+        if (!dom.isCharPoint(point) && !dom.isSpacePoint(point)) {
+          return true;
+        }
+
+        var rng = new WrappedRange(point.node, point.offset, endPoint.node, endPoint.offset);
+        var result = regex.exec(rng.toString());
+        return result && result.index === 0;
+      });
+      var rng = new WrappedRange(startPoint.node, startPoint.offset, endPoint.node, endPoint.offset);
+      var text = rng.toString();
+      var result = regex.exec(text);
+
+      if (result && result[0].length === text.length) {
+        return rng;
+      } else {
+        return null;
+      }
+    }
+    /**
+     * create offsetPath bookmark
+     *
+     * @param {Node} editable
+     */
+
+  }, {
+    key: "bookmark",
+    value: function bookmark(editable) {
+      return {
+        s: {
+          path: dom.makeOffsetPath(editable, this.sc),
+          offset: this.so
+        },
+        e: {
+          path: dom.makeOffsetPath(editable, this.ec),
+          offset: this.eo
+        }
+      };
+    }
+    /**
+     * create offsetPath bookmark base on paragraph
+     *
+     * @param {Node[]} paras
+     */
+
+  }, {
+    key: "paraBookmark",
+    value: function paraBookmark(paras) {
+      return {
+        s: {
+          path: lists.tail(dom.makeOffsetPath(lists.head(paras), this.sc)),
+          offset: this.so
+        },
+        e: {
+          path: lists.tail(dom.makeOffsetPath(lists.last(paras), this.ec)),
+          offset: this.eo
+        }
+      };
+    }
+    /**
+     * getClientRects
+     * @return {Rect[]}
+     */
+
+  }, {
+    key: "getClientRects",
+    value: function getClientRects() {
+      var nativeRng = this.nativeRange();
+      return nativeRng.getClientRects();
+    }
+  }]);
+
+  return WrappedRange;
+}();
+/**
+ * Data structure
+ *  * BoundaryPoint: a point of dom tree
+ *  * BoundaryPoints: two boundaryPoints corresponding to the start and the end of the Range
+ *
+ * See to http://www.w3.org/TR/DOM-Level-2-Traversal-Range/ranges.html#Level-2-Range-Position
+ */
+
+
+/* harmony default export */ var range = ({
+  /**
+   * create Range Object From arguments or Browser Selection
+   *
+   * @param {Node} sc - start container
+   * @param {Number} so - start offset
+   * @param {Node} ec - end container
+   * @param {Number} eo - end offset
+   * @return {WrappedRange}
+   */
+  create: function create(sc, so, ec, eo) {
+    if (arguments.length === 4) {
+      return new range_WrappedRange(sc, so, ec, eo);
+    } else if (arguments.length === 2) {
+      // collapsed
+      ec = sc;
+      eo = so;
+      return new range_WrappedRange(sc, so, ec, eo);
+    } else {
+      var wrappedRange = this.createFromSelection();
+
+      if (!wrappedRange && arguments.length === 1) {
+        var bodyElement = arguments[0];
+
+        if (dom.isEditable(bodyElement)) {
+          bodyElement = bodyElement.lastChild;
+        }
+
+        return this.createFromBodyElement(bodyElement, dom.emptyPara === arguments[0].innerHTML);
+      }
+
+      return wrappedRange;
+    }
+  },
+  createFromBodyElement: function createFromBodyElement(bodyElement) {
+    var isCollapseToStart = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+    var wrappedRange = this.createFromNode(bodyElement);
+    return wrappedRange.collapse(isCollapseToStart);
+  },
+  createFromSelection: function createFromSelection() {
+    var sc, so, ec, eo;
+
+    if (env.isW3CRangeSupport) {
+      var selection = document.getSelection();
+
+      if (!selection || selection.rangeCount === 0) {
+        return null;
+      } else if (dom.isBody(selection.anchorNode)) {
+        // Firefox: returns entire body as range on initialization.
+        // We won't never need it.
+        return null;
+      }
+
+      var nativeRng = selection.getRangeAt(0);
+      sc = nativeRng.startContainer;
+      so = nativeRng.startOffset;
+      ec = nativeRng.endContainer;
+      eo = nativeRng.endOffset;
+    } else {
+      // IE8: TextRange
+      var textRange = document.selection.createRange();
+      var textRangeEnd = textRange.duplicate();
+      textRangeEnd.collapse(false);
+      var textRangeStart = textRange;
+      textRangeStart.collapse(true);
+      var startPoint = textRangeToPoint(textRangeStart, true);
+      var endPoint = textRangeToPoint(textRangeEnd, false); // same visible point case: range was collapsed.
+
+      if (dom.isText(startPoint.node) && dom.isLeftEdgePoint(startPoint) && dom.isTextNode(endPoint.node) && dom.isRightEdgePoint(endPoint) && endPoint.node.nextSibling === startPoint.node) {
+        startPoint = endPoint;
+      }
+
+      sc = startPoint.cont;
+      so = startPoint.offset;
+      ec = endPoint.cont;
+      eo = endPoint.offset;
+    }
+
+    return new range_WrappedRange(sc, so, ec, eo);
+  },
+
+  /**
+   * @method
+   *
+   * create WrappedRange from node
+   *
+   * @param {Node} node
+   * @return {WrappedRange}
+   */
+  createFromNode: function createFromNode(node) {
+    var sc = node;
+    var so = 0;
+    var ec = node;
+    var eo = dom.nodeLength(ec); // browsers can't target a picture or void node
+
+    if (dom.isVoid(sc)) {
+      so = dom.listPrev(sc).length - 1;
+      sc = sc.parentNode;
+    }
+
+    if (dom.isBR(ec)) {
+      eo = dom.listPrev(ec).length - 1;
+      ec = ec.parentNode;
+    } else if (dom.isVoid(ec)) {
+      eo = dom.listPrev(ec).length;
+      ec = ec.parentNode;
+    }
+
+    return this.create(sc, so, ec, eo);
+  },
+
+  /**
+   * create WrappedRange from node after position
+   *
+   * @param {Node} node
+   * @return {WrappedRange}
+   */
+  createFromNodeBefore: function createFromNodeBefore(node) {
+    return this.createFromNode(node).collapse(true);
+  },
+
+  /**
+   * create WrappedRange from node after position
+   *
+   * @param {Node} node
+   * @return {WrappedRange}
+   */
+  createFromNodeAfter: function createFromNodeAfter(node) {
+    return this.createFromNode(node).collapse();
+  },
+
+  /**
+   * @method
+   *
+   * create WrappedRange from bookmark
+   *
+   * @param {Node} editable
+   * @param {Object} bookmark
+   * @return {WrappedRange}
+   */
+  createFromBookmark: function createFromBookmark(editable, bookmark) {
+    var sc = dom.fromOffsetPath(editable, bookmark.s.path);
+    var so = bookmark.s.offset;
+    var ec = dom.fromOffsetPath(editable, bookmark.e.path);
+    var eo = bookmark.e.offset;
+    return new range_WrappedRange(sc, so, ec, eo);
+  },
+
+  /**
+   * @method
+   *
+   * create WrappedRange from paraBookmark
+   *
+   * @param {Object} bookmark
+   * @param {Node[]} paras
+   * @return {WrappedRange}
+   */
+  createFromParaBookmark: function createFromParaBookmark(bookmark, paras) {
+    var so = bookmark.s.offset;
+    var eo = bookmark.e.offset;
+    var sc = dom.fromOffsetPath(lists.head(paras), bookmark.s.path);
+    var ec = dom.fromOffsetPath(lists.last(paras), bookmark.e.path);
+    return new range_WrappedRange(sc, so, ec, eo);
+  }
+});
+// CONCATENATED MODULE: ./src/js/base/core/key.js
+
+
+var KEY_MAP = {
+  'BACKSPACE': 8,
+  'TAB': 9,
+  'ENTER': 13,
+  'ESCAPE': 27,
+  'SPACE': 32,
+  'DELETE': 46,
+  // Arrow
+  'LEFT': 37,
+  'UP': 38,
+  'RIGHT': 39,
+  'DOWN': 40,
+  // Number: 0-9
+  'NUM0': 48,
+  'NUM1': 49,
+  'NUM2': 50,
+  'NUM3': 51,
+  'NUM4': 52,
+  'NUM5': 53,
+  'NUM6': 54,
+  'NUM7': 55,
+  'NUM8': 56,
+  // Alphabet: a-z
+  'B': 66,
+  'E': 69,
+  'I': 73,
+  'J': 74,
+  'K': 75,
+  'L': 76,
+  'R': 82,
+  'S': 83,
+  'U': 85,
+  'V': 86,
+  'Y': 89,
+  'Z': 90,
+  'SLASH': 191,
+  'LEFTBRACKET': 219,
+  'BACKSLASH': 220,
+  'RIGHTBRACKET': 221,
+  // Navigation
+  'HOME': 36,
+  'END': 35,
+  'PAGEUP': 33,
+  'PAGEDOWN': 34
+};
+/**
+ * @class core.key
+ *
+ * Object for keycodes.
+ *
+ * @singleton
+ * @alternateClassName key
+ */
+
+/* harmony default export */ var core_key = ({
+  /**
+   * @method isEdit
+   *
+   * @param {Number} keyCode
+   * @return {Boolean}
+   */
+  isEdit: function isEdit(keyCode) {
+    return lists.contains([KEY_MAP.BACKSPACE, KEY_MAP.TAB, KEY_MAP.ENTER, KEY_MAP.SPACE, KEY_MAP.DELETE], keyCode);
+  },
+
+  /**
+   * @method isMove
+   *
+   * @param {Number} keyCode
+   * @return {Boolean}
+   */
+  isMove: function isMove(keyCode) {
+    return lists.contains([KEY_MAP.LEFT, KEY_MAP.UP, KEY_MAP.RIGHT, KEY_MAP.DOWN], keyCode);
+  },
+
+  /**
+   * @method isNavigation
+   *
+   * @param {Number} keyCode
+   * @return {Boolean}
+   */
+  isNavigation: function isNavigation(keyCode) {
+    return lists.contains([KEY_MAP.HOME, KEY_MAP.END, KEY_MAP.PAGEUP, KEY_MAP.PAGEDOWN], keyCode);
+  },
+
+  /**
+   * @property {Object} nameFromCode
+   * @property {String} nameFromCode.8 "BACKSPACE"
+   */
+  nameFromCode: func.invertObject(KEY_MAP),
+  code: KEY_MAP
+});
+// CONCATENATED MODULE: ./src/js/base/core/async.js
+
+/**
+ * @method readFileAsDataURL
+ *
+ * read contents of file as representing URL
+ *
+ * @param {File} file
+ * @return {Promise} - then: dataUrl
+ */
+
+function readFileAsDataURL(file) {
+  return external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.Deferred(function (deferred) {
+    external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.extend(new FileReader(), {
+      onload: function onload(e) {
+        var dataURL = e.target.result;
+        deferred.resolve(dataURL);
+      },
+      onerror: function onerror(err) {
+        deferred.reject(err);
+      }
+    }).readAsDataURL(file);
+  }).promise();
+}
+/**
+ * @method createImage
+ *
+ * create `<image>` from url string
+ *
+ * @param {String} url
+ * @return {Promise} - then: $image
+ */
+
+function createImage(url) {
+  return external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default.a.Deferred(function (deferred) {
+    var $img = external_root_jQuery_commonjs2_jquery_commonjs_jquery_amd_jquery_default()('<img>');
+    $img.one('load', function () {
+      $img.off('error abort');
+      deferred.resolve($img);
+    }).one('error abort', function () {
+      $img.off('load').detach();
+      deferred.reject($img);
+    }).css({
+      display: 'none'
+    }).appendTo(document.body).attr('src', url);
+  }).promise();
+}
+// CONCATENATED MODULE: ./src/js/base/editing/History.js
+function History_classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function History_defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function History_createClass(Constructor, protoProps, staticProps) { if (protoProps) History_defineProperties(Constructor.prototype, protoProps); if (staticProps) History_defineProperties(Constructor, staticProps); return Constructor; }
+
+
+
+var History_History = /*#__PURE__*/function () {
+  function History(context) {
+    History_classCallCheck(this, History);
+
+    this.stack = [];
+    this.stackOffset = -1;
+    this.context = context;
+    this.$editable = context.layoutInfo.editable;
+    this.editable = this.$editable[0];
+  }
+
+  History_createClass(History, [{
+    key: "makeSnapshot",
+    value: function makeSnapshot() {
+      var rng = range.create(this.editable);
+      var emptyBookmark = {
+        s: {
+          path: [],
+          offset: 0
+        },
+        e: {
+          path: [],
+          offset: 0
+        }
+      };
+      return {
+        contents: this.$editable.html(),
+        bookmark: rng && rng.isOnEditable() ? rng.bookmark(this.editable) : emptyBookmark
+      };
+    }
+  }, {
+    key: "applySnapshot",
+    value: function applySnapshot(snapshot) {
+      if (snapshot.contents !== null) {
+        this.$editable.html(snapshot.contents);
+      }
+
+      if (snapshot.bookmark !== null) {
+        range.createFromBookmark(this.editable, snapshot.bookmark).select();
+      }
+    }
+    /**
+    * @method rewind
+    * Rewinds the history stack back to the first snapshot taken.
+    * Leaves the stack intact, so that "Redo" can still be used.
+    */
+
+  }, {
+    key: "rewind",
+    value: function rewind() {
+      // Create snap shot if not yet recorded
+      if (this.$editable.html() !== this.stack[this.stackOffset].contents) {
+      
